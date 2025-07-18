@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const maxInitialBackupFee = searchParams.get("maxInitialBackupFee");
     const maxPerSignatureFee = searchParams.get("maxPerSignatureFee");
     const maxMonthlyFee = searchParams.get("maxMonthlyFee");
+    const sortBy = searchParams.get("sortBy");
 
     const where: any = {
       isActive: true,
@@ -58,8 +59,16 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    const orderBy: any = {};
+    if (sortBy === "penalties_asc") {
+      orderBy.provider = { penaltyCount: "asc" };
+    } else if (sortBy === "delay_desc") {
+      orderBy.minTimeDelay = "desc";
+    }
+
     const services = await prisma.service.findMany({
       where,
+      orderBy,
       include: {
         provider: {
           select: {
@@ -70,10 +79,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Randomize the order of services to ensure neutrality
-    const shuffledServices = shuffle(services);
+    // Randomize the order of services ONLY if no specific sort order is applied
+    const finalServices = !sortBy ? shuffle(services) : services;
 
-    return NextResponse.json(shuffledServices);
+    return NextResponse.json(finalServices);
   } catch (error) {
     console.error("Failed to fetch services:", error);
     return NextResponse.json(

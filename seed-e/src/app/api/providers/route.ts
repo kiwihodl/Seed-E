@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       perSignatureFee,
       bolt12Offer,
       monthlyFee,
+      minTimeDelay,
     } = body;
 
     // Basic validation
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
           controlSignature,
           initialBackupFee: BigInt(initialBackupFee),
           perSignatureFee: BigInt(perSignatureFee),
+          minTimeDelay: minTimeDelay ? Number(minTimeDelay) : 168, // Default to 168 hours (7 days)
           bolt12Offer,
           isActive: true,
           monthlyFee: monthlyFee ? BigInt(monthlyFee) : undefined,
