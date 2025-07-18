@@ -16,6 +16,7 @@
     "bitcoinjs-lib": "^6.1.7",
     "ecpair": "^3.0.0",
     "next": "15.4.1",
+    "nostr-tools": "^2.15.1",
     "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",

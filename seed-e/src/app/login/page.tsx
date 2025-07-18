@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [step, setStep] = useState<"login" | "2fa-setup" | "2fa-verify">(
@@ -235,11 +236,15 @@ export default function LoginPage() {
                 Scan this QR code with your authenticator app:
               </p>
               {qrCodeDataURL && (
-                <img
-                  src={qrCodeDataURL}
-                  alt="2FA QR Code"
-                  className="mx-auto mb-4"
-                />
+                <div className="flex justify-center mb-4">
+                  <Image
+                    src={qrCodeDataURL}
+                    alt="2FA QR Code"
+                    width={200}
+                    height={200}
+                    className="mx-auto"
+                  />
+                </div>
               )}
             </div>
 

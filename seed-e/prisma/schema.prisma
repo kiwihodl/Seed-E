@@ -85,6 +85,9 @@ model Service {
 
   // The clients who have purchased this service.
   clients Client[]
+
+  // The subscription requests for this service.
+  subscriptionRequests SubscriptionRequest[]
 }
 
 // Represents a Client's relationship with a specific Service they have purchased.
@@ -109,6 +112,9 @@ model Client {
 
   // The pending signature requests from this client.
   signatureRequests SignatureRequest[]
+
+  // The subscription payment requests from this client.
+  subscriptionRequests SubscriptionRequest[]
 }
 
 enum RequestStatus {
@@ -116,6 +122,12 @@ enum RequestStatus {
   SIGNED     // Provider has signed and submitted the PSBT.
   COMPLETED  // Client has acknowledged/received the signed PSBT.
   EXPIRED    // The request timed out.
+}
+
+enum SubscriptionStatus {
+  PENDING    // NIP-47 request created, waiting for payment
+  COMPLETED  // Payment successful, subscription active
+  FAILED     // Payment failed or invalid response
 }
 
 // Represents a request from a Client for a signature from a Provider.
@@ -141,4 +153,29 @@ model SignatureRequest {
   signedAt DateTime?
 
   status RequestStatus @default(PENDING)
+}
+
+// Represents a NIP-47 subscription payment request
+model SubscriptionRequest {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  // Type of subscription (monthly/annual)
+  subscriptionType String
+
+  // Amount in sats
+  amount BigInt
+
+  // NIP-47 request event (JSON string)
+  nip47Request String
+
+  // Status of the subscription request
+  status SubscriptionStatus @default(PENDING)
 }
