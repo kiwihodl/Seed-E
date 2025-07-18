@@ -4,7 +4,8 @@ import { useState } from "react";
 import { KeyPolicyType } from "@prisma/client";
 
 export default function CreateServiceForm() {
-  const [providerName, setProviderName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [policyType, setPolicyType] = useState<KeyPolicyType>(
     KeyPolicyType.P2TR
   );
@@ -22,7 +23,7 @@ export default function CreateServiceForm() {
 
     // In a real app, the user would be prompted to sign this message
     // with the private key corresponding to the xpub.
-    const messageToSign = `I, ${providerName}, attest that this signature was created by the private key corresponding to xpub: ${xpub} for use with Seed-E.`;
+    const messageToSign = `I, ${username}, attest that this signature was created by the private key corresponding to xpub: ${xpub} for use with Seed-E.`;
     const controlSignature = btoa(`dummy-signature-for-${messageToSign}`); // Base64 encoded dummy signature
 
     const response = await fetch("/api/providers", {
@@ -31,7 +32,8 @@ export default function CreateServiceForm() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        providerName,
+        username,
+        password,
         policyType,
         xpub,
         controlSignature,
@@ -47,7 +49,8 @@ export default function CreateServiceForm() {
     if (response.ok) {
       setStatus("Service created successfully!");
       // Optionally clear the form
-      setProviderName("");
+      setUsername("");
+      setPassword("");
       setPolicyType(KeyPolicyType.P2TR);
       setXpub("");
       setInitialBackupFee("");
@@ -62,21 +65,39 @@ export default function CreateServiceForm() {
   return (
     <div className="bg-white shadow-md rounded-lg mt-8">
       <div className="px-6 py-4 border-b">
-        <h2 className="text-2xl font-semibold">Create New Service</h2>
+        <h2 className="text-2xl font-semibold">
+          Create New Provider & Service
+        </h2>
       </div>
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
         <div>
           <label
-            htmlFor="providerName"
+            htmlFor="username"
             className="block text-sm font-medium text-gray-700"
           >
-            Provider Name
+            Provider Username
           </label>
           <input
             type="text"
-            id="providerName"
-            value={providerName}
-            onChange={(e) => setProviderName(e.target.value)}
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
@@ -86,7 +107,7 @@ export default function CreateServiceForm() {
             htmlFor="xpub"
             className="block text-sm font-medium text-gray-700"
           >
-            XPUB
+            Service XPUB
           </label>
           <input
             type="text"

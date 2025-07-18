@@ -12,7 +12,7 @@ This creates a significant barrier to entry for users wanting to improve their s
 
 ## The Solution (What Seed-E Is)
 
-Seed-E is an **unopinionated directory**, not a ratings agency. It acts as a plugin for wallets, providing a simple, secure, and neutral platform for users to find and engage with third-party signing service providers. It is the clients responsibility to gauge the trust-worthiness of provider, who is the back up key and signer. Any way of measuring trust and reputation by is can be gamified or leads to spying, which we refuse to engage in any way. 
+Seed-E is an **unopinionated directory**, not a ratings agency. It acts as a plugin for wallets, providing a simple, secure, and neutral platform for users to find and engage with third-party signing service providers. It is the clients responsibility to gauge the trust-worthiness of provider, who is the back up key and signer. Any way of measuring trust and reputation by is can be gamified or leads to spying, which we refuse to engage in any way.
 
 Our core mission is to facilitate a connection by verifying one thing and one thing only: **that the provider has cryptographic control of the key they offer.** We do not rank, rate, or recommend. We provide objective data and a secure transaction layer, empowering the user to make their own decision.
 
@@ -22,6 +22,7 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 - **Platform Neutrality:** The default provider list is randomized on every load. We do not play favorites. There is no "top spot" to pay for.
 - **User Sovereignty:** The user is in control. They filter the list based on objective, verifiable data (cost, key type, provider age) and make their own informed choice.
 - **Minimalist Trust:** We verify the provider's key control upfront. After that, the trust relationship is between the client and the provider, where it belongs.
+- **Robust Lifecycle Management:** The platform includes automated warnings and clear processes for handling overdue subscription payments, ensuring fairness for both clients and providers.
 
 ---
 
@@ -36,12 +37,12 @@ Our core mission is to facilitate a connection by verifying one thing and one th
     - **Provider Since** (sorted from oldest to newest)
 3.  **Pay:** The user selects a provider and is presented with a corresponding Lightning invoice, where the amount is set by the provider. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days, 12 months etc).
 4.  **Receive:** Upon successful payment, the provider's verified `xpub` is immediately delivered to the user's wallet for inclusion in their multisig configuration.
-5.  **Subscribe (Optional):** If the provider requires a monthly fee, in the case they pay to secure it somewhere, the user can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access. If this fee is not continually paid, there will be an amount that needs to be paid before any sign is done and / or they risk the provider no longer holding on to their key. 
+5.  **Subscribe (Optional):** If the provider requires a monthly fee, in the case they pay to secure it somewhere, the user can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access. If this fee is not continually paid, there will be an amount that needs to be paid before any sign is done and / or they risk the provider no longer holding on to their key.
 6.  **Request Signature:** Later, when a signature is needed, the user authenticates with Seed-E (using a unique Client ID and a password), pays the per-signature fee (if applicable), and submits their PSBT. This can not be paid within 7 days of submission, to help mitigate wrenches.
 
 ## The Provider Flow
 
-1.  **Register:** A provider signs up on the Seed-E dashboard.
+1.  **Register & Secure Account:** A provider signs up with a username and password and is required to set up Time-based One-Time Password (TOTP) 2FA for account security.
 2.  **Define Service:** They create a service listing, providing:
     - The `xpub` of the key they will use.
     - The key's policy type.
@@ -50,6 +51,19 @@ Our core mission is to facilitate a connection by verifying one thing and one th
     - A **BOLT12 Offer** (`lno...`) for receiving payments.
 3.  **Prove Control:** To be listed, the provider must sign a message with the private key corresponding to the `xpub` they provided. Our backend verifies this signature.
 4.  **Handle Requests:** When a user requests a signature, the provider receives a **push notification**. They log into their dashboard, review the pending PSBT, sign it with their key, and submit the signed PSBT back through the dashboard.
+
+---
+
+## Subscription & Dunning Lifecycle
+
+To ensure fairness and transparency, Seed-E automates the handling of subscription payments.
+
+1.  **Grace Period:** If a client's monthly payment is missed, a 5-week grace period begins.
+2.  **Weekly Warnings:** During the grace period, the client receives a weekly notification warning them of the overdue payment.
+3.  **Deletion Warning:** After the second month of non-payment, the warning changes to inform the client that the key is at risk of being deleted by the provider in one month. A countdown is provided with each weekly notification.
+4.  **Provider Action (After 3 Months):** After three months of non-payment, the provider has two options on their dashboard:
+    - **Delete the Key:** The provider can choose to delete the key. A final, verifiable notification is sent to both the provider and the client confirming this action. The client's outstanding balance is cleared.
+    - **Retain the Key:** The provider can choose to hold onto the key. The outstanding balance continues to accrue. The client will be required to pay the full back-charged amount before they can request any future signatures.
 
 ---
 
@@ -68,7 +82,7 @@ The security model is focused on cryptographic proof and minimizing the platform
 
 - **Upfront Key Verification:** A provider's service is not listed until they sign a challenge string with the private key for the `xpub` they are offering. We verify this `(message, xpub, signature)` tuple to cryptographically prove control. This is the foundation of the platform's integrity.
 - **PSBT Handling:** When a client needs a signature, they submit an unsigned PSBT to our backend after paying the fee (or if their subscription is active). We pass this to the provider. The provider signs it and submits the signed PSBT back. The platform simply acts as a secure data conduit for the PSBT.
-- **Client Authentication:** For signing requests (after the initial backup), we avoid on-chain heuristics entirely as we don't want any identifiable or tracking data. The client authenticates using a `Client ID` (unique, generated and stored by Seed-E) and a strong, hashed password. This is a classic, battle-tested model that keeps authentication off-chain and secure.
+- **Client Authentication:** For signing requests (after the initial backup), clients authenticate using a username, a strong hashed password, and a TOTP-based 2FA code. This provides strong security for initiating sensitive operations like signature requests.
 
 The project is designed as a modern, monolithic web application for simplicity and rapid development.
 
