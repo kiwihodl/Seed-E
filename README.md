@@ -6,13 +6,13 @@ A neutral, non-custodial directory for third-party Bitcoin signing services, des
 
 ## The Problem (Why Seed-E is Needed)
 
-Setting up a robust multisignature wallet often involves a difficult choice for the final key. While hardware wallets and hot wallets are common, finding a trustworthy and technically compatible third-party signing service is a major hurdle. Users are left to navigate a fragmented landscape of trust based on social media presence, with no standardized way to engage or verify services.
+Setting up a robust multisignature wallet often involves a difficult choice for where your keys are located. While hardware wallets and hot wallets are common, finding a trustworthy and technically compatible third-party signing service, in a different geographical location, to mitigate wrenches and 6102 attempts, is a major hurdle. Users are left to navigate a fragmented landscape of trust based on social media presence for individuals, or KYC with companies which these centralized institutions reintroduce a 6102 attack vector, while needing your XPub which means they track and know all of your corresponding balances and transactions. There is no standardized way to engage or verify services, until now.
 
-This creates a significant barrier to entry for users wanting to improve their security with a `m-of-n` setup that includes a reliable, professional third-party.
+This creates a significant barrier to entry for users wanting to improve their security with a `m-of-n` setup that includes a reliable, professional and reputable third-party.
 
 ## The Solution (What Seed-E Is)
 
-Seed-E is an **unopinionated directory**, not a ratings agency. It acts as a plugin for wallets, providing a simple, secure, and neutral platform for users to find and engage with third-party signing service providers.
+Seed-E is an **unopinionated directory**, not a ratings agency. It acts as a plugin for wallets, providing a simple, secure, and neutral platform for users to find and engage with third-party signing service providers. It is the clients responsibility to gauge the trust-worthiness of provider, who is the back up key and signer. Any way of measuring trust and reputation by is can be gamified or leads to spying, which we refuse to engage in any way. 
 
 Our core mission is to facilitate a connection by verifying one thing and one thing only: **that the provider has cryptographic control of the key they offer.** We do not rank, rate, or recommend. We provide objective data and a secure transaction layer, empowering the user to make their own decision.
 
@@ -34,10 +34,10 @@ Our core mission is to facilitate a connection by verifying one thing and one th
     - **Per-Signature Cost**
     - **Monthly Subscription Fee** (optional)
     - **Provider Since** (sorted from oldest to newest)
-3.  **Pay:** The user selects a provider and is presented with a Lightning invoice. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days).
+3.  **Pay:** The user selects a provider and is presented with a corresponding Lightning invoice, where the amount is set by the provider. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days, 12 months etc).
 4.  **Receive:** Upon successful payment, the provider's verified `xpub` is immediately delivered to the user's wallet for inclusion in their multisig configuration.
-5.  **Subscribe (Optional):** If the provider requires a monthly fee, the user can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access.
-6.  **Request Signature:** Later, when a signature is needed, the user authenticates with Seed-E (using a unique Client ID and a password), pays the per-signature fee (if applicable), and submits their PSBT.
+5.  **Subscribe (Optional):** If the provider requires a monthly fee, in the case they pay to secure it somewhere, the user can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access. If this fee is not continually paid, there will be an amount that needs to be paid before any sign is done and / or they risk the provider no longer holding on to their key. 
+6.  **Request Signature:** Later, when a signature is needed, the user authenticates with Seed-E (using a unique Client ID and a password), pays the per-signature fee (if applicable), and submits their PSBT. This can not be paid within 7 days of submission, to help mitigate wrenches.
 
 ## The Provider Flow
 
@@ -57,24 +57,18 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 
 This section is for those interested in the underlying architecture.
 
-### For the Friend at Voltage (Lightning & Payments)
-
 The entire payment architecture is designed to be non-custodial, with our service acting as a "proof-of-payment oracle."
 
 - **BOLT12 is Key:** Providers give us a static BOLT12 Offer, not a one-time invoice. This offer contains their node's identity and payment parameters.
 - **Non-Custodial Invoice Generation:** When a client wants to pay, our backend does **not** generate an invoice for its own node. Instead, it uses the provider's BOLT12 offer to request a unique, payable invoice _on behalf of the provider_. The destination in the resulting `lnbc...` invoice is the provider's node.
 - **Proof of Payment:** The payment flows directly from the client to the provider. Our backend node receives the `invoice_settled` webhook from its node software (e.g., LND, Core Lightning) the instant the payment succeeds. This is our verifiable trigger for all state changes, whether it's releasing an `xpub`, authorizing a signature request, or extending a monthly subscription.
-- **Node Infrastructure:** This requires a dedicated, always-on backend Lightning node. A service like **Voltage** is ideal as it provides an instant, API-controllable node that can handle the programmatic invoice requests and webhook listeners required. It can also be configured to request recurring payments using standards like Nostr Wallet Connect (NIP-47).
-
-### For the Friend at Bitcoin Keeper (Security & Bitcoin Logic)
+- **Node Infrastructure:** This requires a dedicated, always-on backend Lightning node. A service like **Voltage** is ideal as it provides an instant, API-controllable node that can handle the programmatic invoice requests and webhook listeners required. It can also be configured to request recurring payments using standards like Nostr Wallet Connect (NIP-47), this will start with my (kiwihodl's) spare node, to iterate quickly and get it ready for production.
 
 The security model is focused on cryptographic proof and minimizing the platform's role.
 
 - **Upfront Key Verification:** A provider's service is not listed until they sign a challenge string with the private key for the `xpub` they are offering. We verify this `(message, xpub, signature)` tuple to cryptographically prove control. This is the foundation of the platform's integrity.
 - **PSBT Handling:** When a client needs a signature, they submit an unsigned PSBT to our backend after paying the fee (or if their subscription is active). We pass this to the provider. The provider signs it and submits the signed PSBT back. The platform simply acts as a secure data conduit for the PSBT.
-- **Client Authentication:** For signing requests (after the initial backup), we avoid on-chain heuristics entirely. The client authenticates using a `Client ID` (unique, generated by us, stored by their wallet) and a strong, hashed password. This is a classic, battle-tested model that keeps authentication off-chain and secure.
-
-### For the Friend Who Can Host (Infrastructure & Stack)
+- **Client Authentication:** For signing requests (after the initial backup), we avoid on-chain heuristics entirely as we don't want any identifiable or tracking data. The client authenticates using a `Client ID` (unique, generated and stored by Seed-E) and a strong, hashed password. This is a classic, battle-tested model that keeps authentication off-chain and secure.
 
 The project is designed as a modern, monolithic web application for simplicity and rapid development.
 
@@ -82,4 +76,4 @@ The project is designed as a modern, monolithic web application for simplicity a
 - **Progressive Web App (PWA):** The provider-facing part of the app is a PWA. This allows providers to "install" the dashboard on their phone or desktop, giving it an app-like feel and enabling push notifications without the complexity of native app development or app stores.
 - **API & Frontend in One:** Next.js API Routes will serve the wallet plugin's requests and the frontend dashboard's data needs. The frontend itself will be built in React.
 - **Notifications:** We will use the standard **Web Push API** to send real-time notifications to the provider's PWA when a signature request is pending.
-- **Database:** A standard PostgreSQL database is recommended to store provider data, service listings, client IDs (with hashed passwords), and payment states.
+- **Database:** A standard PostgreSQL database to store provider data, service listings, client IDs (with hashed passwords), and payment states.
