@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     const policyType = searchParams.get("policyType") as KeyPolicyType | null;
     const maxInitialBackupFee = searchParams.get("maxInitialBackupFee");
     const maxPerSignatureFee = searchParams.get("maxPerSignatureFee");
+    const maxMonthlyFee = searchParams.get("maxMonthlyFee");
 
     const where: any = {
       isActive: true,
@@ -48,6 +49,12 @@ export async function GET(request: NextRequest) {
     if (maxPerSignatureFee) {
       where.perSignatureFee = {
         lte: BigInt(maxPerSignatureFee),
+      };
+    }
+
+    if (maxMonthlyFee) {
+      where.monthlyFee = {
+        lte: BigInt(maxMonthlyFee),
       };
     }
 

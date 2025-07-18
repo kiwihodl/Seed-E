@@ -57,6 +57,9 @@ model Service {
   // The fee for each subsequent signature. In sats.
   perSignatureFee BigInt
 
+  // An optional monthly fee for ongoing service. In sats.
+  monthlyFee BigInt?
+
   // The BOLT12 offer string for receiving payments.
   bolt12Offer String
 
@@ -81,6 +84,9 @@ model Client {
 
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id])
+
+  // Tracks the expiration date of the client's subscription for this service.
+  subscriptionExpiresAt DateTime?
 
   // The pending signature requests from this client.
   signatureRequests SignatureRequest[]

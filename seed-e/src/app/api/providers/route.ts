@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       initialBackupFee,
       perSignatureFee,
       bolt12Offer,
+      monthlyFee, // optional
     } = body;
 
     // Basic validation
@@ -82,22 +83,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const newService = await prisma.service.create({
-      data: {
-        policyType,
-        xpub,
-        controlSignature,
-        initialBackupFee: BigInt(initialBackupFee),
-        perSignatureFee: BigInt(perSignatureFee),
-        bolt12Offer,
-        isActive: true, // Automatically active on creation for now
-        provider: {
-          connectOrCreate: {
-            where: { name: providerName },
-            create: { name: providerName },
-          },
+    const data: any = {
+      policyType,
+      xpub,
+      controlSignature,
+      initialBackupFee: BigInt(initialBackupFee),
+      perSignatureFee: BigInt(perSignatureFee),
+      bolt12Offer,
+      isActive: true, // Automatically active on creation for now
+      provider: {
+        connectOrCreate: {
+          where: { name: providerName },
+          create: { name: providerName },
         },
       },
+    };
+
+    if (monthlyFee !== undefined) {
+      data.monthlyFee = BigInt(monthlyFee);
+    }
+
+    const newService = await prisma.service.create({
+      data,
       include: {
         provider: true, // Include the provider details in the response
       },
