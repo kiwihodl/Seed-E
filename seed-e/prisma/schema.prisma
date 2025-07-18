@@ -26,8 +26,9 @@ model Provider {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // A public-facing name for the provider.
-  name String @unique
+  username        String  @unique
+  passwordHash    String
+  twoFactorSecret String? // Encrypted TOTP secret
 
   // The services (key offerings) this provider has.
   services Service[]
@@ -76,11 +77,9 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // The unique, non-secret ID for the client. e.g., seede-client-a1b2c3d4
-  clientId String @unique
-
-  // The hashed password for the client.
-  passwordHash String
+  username        String  @unique
+  passwordHash    String
+  twoFactorSecret String? // Encrypted TOTP secret
 
   // The payment hash of the invoice used to create/renew the subscription.
   // This will be used to link LND webhook events back to the client.

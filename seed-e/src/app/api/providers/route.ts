@@ -4,6 +4,7 @@ import * as bitcoin from "bitcoinjs-lib";
 import * as ecc from "tiny-secp256k1";
 import ECPairFactory from "ecpair";
 import BIP32Factory from "bip32";
+import * as bcrypt from "bcryptjs";
 
 const ECPair = ECPairFactory(ecc);
 const bip32 = BIP32Factory(ecc);
@@ -41,19 +42,21 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      providerName,
+      username,
+      password,
       policyType,
       xpub,
       controlSignature,
       initialBackupFee,
       perSignatureFee,
       bolt12Offer,
-      monthlyFee, // optional
+      monthlyFee,
     } = body;
 
     // Basic validation
     if (
-      !providerName ||
+      !username ||
+      !password ||
       !policyType ||
       !xpub ||
       !controlSignature ||
@@ -75,7 +78,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const messageToVerify = `I, ${providerName}, attest that this signature was created by the private key corresponding to xpub: ${xpub} for use with Seed-E.`;
+    const messageToVerify = `I, ${username}, attest that this signature was created by the private key corresponding to xpub: ${xpub} for use with Seed-E.`;
     if (!verifySignature(xpub, controlSignature, messageToVerify)) {
       return NextResponse.json(
         { error: "Invalid control signature" },
@@ -83,31 +86,36 @@ export async function POST(request: Request) {
       );
     }
 
-    const data: any = {
-      policyType,
-      xpub,
-      controlSignature,
-      initialBackupFee: BigInt(initialBackupFee),
-      perSignatureFee: BigInt(perSignatureFee),
-      bolt12Offer,
-      isActive: true, // Automatically active on creation for now
-      provider: {
-        connectOrCreate: {
-          where: { name: providerName },
-          create: { name: providerName },
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    // Create a new provider and their first service in a transaction
+    const newService = await prisma.$transaction(async (tx) => {
+      const provider = await tx.provider.create({
+        data: {
+          username,
+          passwordHash,
         },
-      },
-    };
+      });
 
-    if (monthlyFee !== undefined) {
-      data.monthlyFee = BigInt(monthlyFee);
-    }
-
-    const newService = await prisma.service.create({
-      data,
-      include: {
-        provider: true, // Include the provider details in the response
-      },
+      const service = await tx.service.create({
+        data: {
+          providerId: provider.id,
+          policyType,
+          xpub,
+          controlSignature,
+          initialBackupFee: BigInt(initialBackupFee),
+          perSignatureFee: BigInt(perSignatureFee),
+          bolt12Offer,
+          isActive: true,
+          monthlyFee: monthlyFee ? BigInt(monthlyFee) : undefined,
+        },
+        include: {
+          provider: true,
+        },
+      });
+      return service;
     });
 
     return NextResponse.json(newService, { status: 201 });

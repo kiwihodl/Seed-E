@@ -23,11 +23,11 @@ async function generateLightningInvoice(
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { serviceId, password } = body;
+    const { serviceId, username, password } = body;
 
-    if (!serviceId || !password) {
+    if (!serviceId || !username || !password) {
       return NextResponse.json(
-        { error: "Missing serviceId or password" },
+        { error: "Missing serviceId, username, or password" },
         { status: 400 }
       );
     }
@@ -43,23 +43,18 @@ export async function POST(request: Request) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Create a unique client ID
-    const clientId = `seede-client-${Date.now()}${Math.random()
-      .toString(36)
-      .substring(2, 8)}`;
-
     // Here we would typically associate the paymentHash with the client
     // to verify payment later via a webhook.
     const { invoice, paymentHash } = await generateLightningInvoice(
       service.bolt12Offer,
       service.initialBackupFee,
-      clientId
+      username // Use username for invoice metadata if needed
     );
 
     // Create the client record
     const client = await prisma.client.create({
       data: {
-        clientId,
+        username,
         passwordHash,
         paymentHash, // Store the payment hash to verify later
         serviceId: service.id,
@@ -68,7 +63,7 @@ export async function POST(request: Request) {
     });
 
     console.log(
-      `Created client ${client.clientId} with paymentHash ${paymentHash}`
+      `Created client ${client.username} with paymentHash ${paymentHash}`
     );
 
     return NextResponse.json({ invoice });
