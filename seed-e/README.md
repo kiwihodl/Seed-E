@@ -1,24 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Seed-E
+
+A neutral, non-custodial directory for third-party Bitcoin signing services, designed to be integrated directly into wallets.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- Lightning Network node (LND) for payments
+
+### Environment Setup
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```bash
+# Database Configuration
+# IMPORTANT: Use only ONE DATABASE_URL - having multiple will cause conflicts
+DATABASE_URL="postgresql://username:password@localhost:5432/seed-e-db"
+
+# Next.js Configuration
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Lightning Network Configuration (LND)
+LND_REST_URL="https://your-lnd-node:8080"
+LND_INVOICE_MACAROON="your-invoice-macaroon-here"
+```
+
+### Database Setup
+
+1. **Install Dependencies:**
+
+   ```bash
+   npm install
+   ```
+
+2. **Generate Prisma Client:**
+
+   ```bash
+   npx prisma generate
+   ```
+
+3. **Push Database Schema:**
+   ```bash
+   npx prisma db push
+   ```
+
+### Development
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables Explained
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Database Configuration
+
+- **DATABASE_URL**: Your PostgreSQL connection string
+  - **⚠️ IMPORTANT**: Only use ONE DATABASE_URL variable
+  - Having multiple DATABASE_URL variables will cause conflicts
+  - Example: `postgresql://username:password@localhost:5432/seed-e-db`
+
+### Lightning Network Configuration
+
+- **LND_REST_URL**: Your LND node's REST API URL
+  - Example: `https://your-lnd-node:8080`
+- **LND_INVOICE_MACAROON**: Your LND node's invoice macaroon
+  - Used for generating Lightning invoices
+
+### Next.js Configuration
+
+- **NEXT_PUBLIC_APP_URL**: Your application's public URL
+  - For development: `http://localhost:3000`
+  - For production: Your domain URL
+
+## Project Structure
+
+```
+seed-e/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── api/               # API Routes
+│   │   ├── dashboard/         # Client Dashboard
+│   │   └── login/            # Authentication
+│   └── components/            # React Components
+├── prisma/                    # Database Schema
+└── public/                   # Static Assets
+```
+
+## Features
+
+- **Provider Registration**: Sign up as a signing service provider
+- **Client Dashboard**: Purchase and manage signing services
+- **2FA Authentication**: Time-based One-Time Password (TOTP)
+- **Lightning Payments**: Non-custodial payment processing
+- **Signature Requests**: Submit and manage PSBT signing requests
+- **Time-Delay System**: Mitigate wrench attacks with configurable delays
 
 ## Learn More
 
@@ -26,8 +107,6 @@ To learn more about Next.js, take a look at the following resources:
 
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 ## Deploy on Vercel
 
