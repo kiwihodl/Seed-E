@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================================================= //
+//                            MODELS                                 //
+// ================================================================= //
+
+enum KeyPolicyType {
+  P2WSH
+  P2TR
+  P2SH
+}
+
+// Represents an individual or entity providing signing services.
+model Provider {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // A public-facing name for the provider.
+  name String @unique
+
+  // The services (key offerings) this provider has.
+  services Service[]
+}
+
+// Represents a specific key being offered as a service by a Provider.
+model Service {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+
+  // The policy type of the key being offered (e.g., Taproot, SegWit).
+  policyType KeyPolicyType
+
+  // The extended public key for this service.
+  xpub String @unique
+
+  // The signature proving the provider controls the xpub.
+  controlSignature String
+
+  // The initial fee to get access to the xpub. In sats.
+  initialBackupFee BigInt
+
+  // The fee for each subsequent signature. In sats.
+  perSignatureFee BigInt
+
+  // The BOLT12 offer string for receiving payments.
+  bolt12Offer String
+
+  // A flag to show if the service is active and listed.
+  isActive Boolean @default(true)
+
+  // The clients who have purchased this service.
+  clients Client[]
+}
+
+// Represents a Client's relationship with a specific Service they have purchased.
+model Client {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The unique, non-secret ID for the client. e.g., seede-client-a1b2c3d4
+  clientId String @unique
+
+  // The hashed password for the client.
+  passwordHash String
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  // The pending signature requests from this client.
+  signatureRequests SignatureRequest[]
+}
+
+enum RequestStatus {
+  PENDING    // Client has paid, waiting for provider to sign.
+  SIGNED     // Provider has signed and submitted the PSBT.
+  COMPLETED  // Client has acknowledged/received the signed PSBT.
+  EXPIRED    // The request timed out.
+}
+
+// Represents a request from a Client for a signature from a Provider.
+model SignatureRequest {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  // The PSBT (Partially Signed Bitcoin Transaction) needing a signature.
+  // Stored as a base64 string.
+  unsignedPsbt String
+
+  // The PSBT after the provider has signed it.
+  signedPsbt String?
+
+  status RequestStatus @default(PENDING)
+}
