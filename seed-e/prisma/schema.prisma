@@ -65,6 +65,9 @@ model Service {
   // An optional monthly fee for ongoing service. In sats.
   monthlyFee BigInt?
 
+  // An optional annual fee for ongoing service. In sats.
+  annualFee BigInt?
+
   // The BOLT12 offer string for receiving payments.
   bolt12Offer String
 

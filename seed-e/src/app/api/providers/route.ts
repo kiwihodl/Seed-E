@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       bolt12Offer,
       monthlyFee,
       minTimeDelay,
+      annualFee,
     } = body;
 
     // Basic validation
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
           bolt12Offer,
           isActive: true,
           monthlyFee: monthlyFee ? BigInt(monthlyFee) : undefined,
+          annualFee: annualFee ? BigInt(annualFee) : undefined,
         },
         include: {
           provider: true,
