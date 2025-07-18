@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     });
 
     if (verified) {
-      // Potentially you could have a `twoFactorEnabled` flag to set to true here.
+      // Should I have `twoFactorEnabled` flag to set to true here?
       // For now, successfully verifying means it's enabled.
       return NextResponse.json({ verified: true });
     } else {

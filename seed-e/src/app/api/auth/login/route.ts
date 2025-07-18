@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     // TODO: Implement session management (e.g., with iron-session or next-auth)
     // TODO: Add 2FA check here if user.twoFactorSecret is not null
 
-    // For now, return a simple success response
+    // For now, during testing and initial iteration, return a simple success response
     const { passwordHash, ...userWithoutPassword } = user;
 
     return NextResponse.json({

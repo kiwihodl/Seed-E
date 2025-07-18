@@ -5,11 +5,10 @@ const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
-    // Note: The structure of the LND webhook payload might need to be adjusted
-    // based on your specific LND configuration (e.g., v1/invoices/subscribe).
-    // We are assuming a simple payload with a payment_hash for this example.
     const body = await request.json();
-    const paymentHash = body.payment_hash;
+    const paymentHash = Buffer.from(body.payment_hash, "base64").toString(
+      "hex"
+    );
 
     if (!paymentHash) {
       return NextResponse.json(
@@ -23,8 +22,6 @@ export async function POST(request: Request) {
     });
 
     if (!client) {
-      // It's possible LND sends a webhook for an invoice not related to our app.
-      // In that case, we can't find a client, so we just acknowledge and ignore.
       console.log(`Webhook received for unknown paymentHash: ${paymentHash}`);
       return NextResponse.json(
         { message: "Client for payment hash not found" },
@@ -41,14 +38,13 @@ export async function POST(request: Request) {
       where: { id: client.id },
       data: {
         subscriptionExpiresAt: newExpirationDate,
-        // We can clear the paymentHash now that it has been used
         paymentHash: null,
       },
     });
 
     console.log(
       `Successfully processed payment for client ${
-        client.clientId
+        client.username
       }. Subscription active until ${newExpirationDate.toISOString()}.`
     );
 

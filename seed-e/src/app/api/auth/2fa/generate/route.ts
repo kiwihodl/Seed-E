@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       name: `Seed-E (${user.username})`,
     });
 
-    // In a real application, you would encrypt this secret before storing it.
+    // TODO - encrypt this secret before storing it.
     // For simplicity, we are storing it as plaintext for now.
     if (userType === "provider") {
       await prisma.provider.update({

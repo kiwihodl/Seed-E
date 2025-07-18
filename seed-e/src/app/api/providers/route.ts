@@ -55,7 +55,6 @@ export async function POST(request: Request) {
       annualFee,
     } = body;
 
-    // Basic validation
     if (
       !username ||
       !password ||
