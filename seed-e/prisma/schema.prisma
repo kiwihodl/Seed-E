@@ -82,6 +82,10 @@ model Client {
   // The hashed password for the client.
   passwordHash String
 
+  // The payment hash of the invoice used to create/renew the subscription.
+  // This will be used to link LND webhook events back to the client.
+  paymentHash String? @unique
+
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id])
 
