@@ -1,10 +1,10 @@
 import { NextResponse, NextRequest } from "next/server";
-import { PrismaClient, KeyPolicyType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 // Function to shuffle an array (Fisher-Yates shuffle)
-function shuffle(array: any[]) {
+function shuffle<T>(array: T[]): T[] {
   let currentIndex = array.length,
     randomIndex;
   while (currentIndex !== 0) {
@@ -22,17 +22,17 @@ function shuffle(array: any[]) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const policyType = searchParams.get("policyType") as KeyPolicyType | null;
+    const policyType = searchParams.get("policyType");
     const maxInitialBackupFee = searchParams.get("maxInitialBackupFee");
     const maxPerSignatureFee = searchParams.get("maxPerSignatureFee");
     const maxMonthlyFee = searchParams.get("maxMonthlyFee");
     const sortBy = searchParams.get("sortBy");
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       isActive: true,
     };
 
-    if (policyType && Object.values(KeyPolicyType).includes(policyType)) {
+    if (policyType && ["P2WSH", "P2TR", "P2SH"].includes(policyType)) {
       where.policyType = policyType;
     }
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const orderBy: any = {};
+    const orderBy: Record<string, unknown> = {};
     if (sortBy === "penalties_asc") {
       orderBy.provider = { penaltyCount: "asc" };
     } else if (sortBy === "delay_desc") {
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       include: {
         provider: {
           select: {
-            name: true,
+            username: true,
             createdAt: true,
           },
         },

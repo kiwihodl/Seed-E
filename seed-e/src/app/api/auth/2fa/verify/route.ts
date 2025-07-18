@@ -16,7 +16,10 @@ export async function POST(request: Request) {
       );
     }
 
-    let user: any = null;
+    let user:
+      | Awaited<ReturnType<typeof prisma.provider.findUnique>>
+      | Awaited<ReturnType<typeof prisma.client.findUnique>>
+      | null = null;
     if (userType === "provider") {
       user = await prisma.provider.findUnique({ where: { username } });
     } else if (userType === "client") {

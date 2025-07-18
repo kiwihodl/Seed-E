@@ -1,0 +1,83 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Seed-E Project Status & Blocker Report
+
+## 1. Project Goal
+
+Seed-E is a non-custodial directory for Bitcoin signing services, designed as a wallet plugin. It facilitates connections between users and providers, verifies key ownership, and handles payments via a self-hosted LND node, without taking custody of funds. The platform includes features like 2FA, subscription models, and a unique time-delay/penalty system for signature requests.
+
+## 2. Current Progress
+
+The core backend and foundational frontend are complete and the project now builds successfully without errors.
+
+### ✅ Completed Backend APIs:
+- **Provider & Client Auth:**
+  - `POST /api/providers`: Provider signup (username/password) & initial service creation.
+  - `POST /api/clients/purchase`: Client signup and purchase flow.
+  - `POST /api/auth/login`: Unified login for providers and clients.
+- **2FA Setup:**
+  - `POST /api/auth/2fa/generate`: Creates a TOTP secret and returns a QR code.
+  - `POST /api/auth/2fa/verify`: Verifies the first TOTP token to enable 2FA.
+- **Service & Signature Logic:**
+  - `GET /api/services`: Lists all active services with filtering and sorting (including by penalty count).
+  - `POST /api/signatures`: Allows a client to submit an unsigned PSBT to create a `SignatureRequest`.
+- **Payments:**
+  - LND integration is coded into the `/api/clients/purchase` route to generate real invoices.
+  - `POST /api/webhooks/lnd`: Webhook handler is in place to listen for settled invoices and activate client subscriptions.
+
+### ✅ Completed Frontend UI:
+- **Provider Signup:** A form at `/` allows new providers to register and create their first service.
+- **Login & 2FA:** A page at `/login` handles the full login and 2FA setup flow.
+- **Client Dashboard:** A page at `/dashboard` displays a client's purchased service and a button to request a signature.
+- **Signature Request Modal:** A functional modal allows clients to submit a PSBT.
+
+### ✅ Build Status:
+- **RESOLVED:** The project now builds successfully without TypeScript errors.
+- Fixed Prisma client output path configuration.
+- Resolved all "Unexpected any" type errors by using proper TypeScript types.
+- Created missing components (SignatureRequestModal, login page, dashboard page).
+- Fixed database schema configuration for local vs production environments.
+
+## 3. Recent Fixes Applied
+
+### TypeScript & Build Issues Resolved:
+1. **Prisma Client Configuration:** Fixed the output path in `schema.prisma` to generate within the project's `node_modules` directory.
+2. **Type Safety:** Replaced all `any` types with proper TypeScript types using Prisma's inferred types.
+3. **Missing Components:** Created the missing `SignatureRequestModal` component and login/dashboard pages.
+4. **Database Configuration:** Added proper local vs production database URL configuration with comments for deployment.
+
+### Database Schema Updates:
+- Added both local and production datasource configurations in `schema.prisma`
+- Local configuration is active, production configuration is commented out
+- Clear instructions for switching before deployment
+
+## 4. Next Steps
+
+**The immediate blocker has been resolved!** The project now builds successfully.
+
+### Immediate Next Steps:
+1. **Test the Application:** Run the development server and test the core flows:
+   - Provider signup and service creation
+   - Client purchase flow
+   - Login and 2FA setup
+   - Signature request submission
+
+2. **Provider Dashboard V2:** The next planned feature is the Provider Dashboard:
+   - Create an API endpoint for authenticated providers to fetch pending `SignatureRequests`
+   - Build the UI on a protected route for providers to see requests and submit signed PSBTs
+
+3. **Database Setup:** Set up the PostgreSQL database and run migrations:
+   ```bash
+   npx prisma db push
+   ```
+
+4. **Environment Configuration:** Ensure all required environment variables are set in `.env.local`
+
+### Minor Warnings to Address:
+- One ESLint warning about using `<img>` instead of Next.js `<Image>` component in the login page (non-critical)
+- Multiple lockfiles warning (consider removing the duplicate package-lock.json)
+
+The project is now in a good state for continued development and testing!

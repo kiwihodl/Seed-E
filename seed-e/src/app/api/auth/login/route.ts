@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Provider, Client } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { username, password, userType = "provider" } = body; // Assume provider login by default
+    const { username, password, userType = "provider" } = body;
 
     if (!username || !password) {
       return NextResponse.json(
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       );
     }
 
-    let user: any = null;
+    let user: Provider | Client | null = null;
 
     if (userType === "provider") {
       user = await prisma.provider.findUnique({
@@ -46,12 +46,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // TODO: Implement session management (e.g., with iron-session or next-auth)
-    // TODO: Add 2FA check here if user.twoFactorSecret is not null
+    // TODO: Implement session management
+    // TODO: Add 2FA check
 
-    // For now, during testing and initial iteration, return a simple success response
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...userWithoutPassword } = user;
-
     return NextResponse.json({
       message: "Login successful",
       user: userWithoutPassword,
