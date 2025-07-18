@@ -29,16 +29,15 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 ## The User Flow
 
 1.  **Discover:** Inside their wallet's multisig setup, the user selects "Third-Party Signer". The Seed-E plugin loads.
-2.  **Filter:** The user is shown a **randomized** list of providers. They can filter this list by:
-    - **Key Policy Type** (e.g., Taproot, SegWit)
-    - **Initial Backup Cost**
-    - **Per-Signature Cost**
-    - **Monthly Subscription Fee** (optional)
-    - **Provider Since** (sorted from oldest to newest)
-3.  **Pay:** The user selects a provider and is presented with a corresponding Lightning invoice, where the amount is set by the provider. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days, 12 months etc).
+2.  **Filter & Sort:** The user is shown a **randomized** list of providers. They can filter the list and also apply a sort order:
+    - **Filters:** Key Policy Type, Cost (Backup, Signature, or Subscripton - Monthly / Annualy), Provider Since.
+    - **Sort Options:** Default (Random), Fewest Penalties, Longest Time Delay.
+3.  **Pay:** The user selects a provider and is presented with a Lightning invoice. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days).
 4.  **Receive:** Upon successful payment, the provider's verified `xpub` is immediately delivered to the user's wallet for inclusion in their multisig configuration.
-5.  **Subscribe (Optional):** If the provider requires a monthly fee, in the case they pay to secure it somewhere, the user can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access. If this fee is not continually paid, there will be an amount that needs to be paid before any sign is done and / or they risk the provider no longer holding on to their key.
-6.  **Request Signature:** Later, when a signature is needed, the user authenticates with Seed-E (using a unique Client ID and a password), pays the per-signature fee (if applicable), and submits their PSBT. This can not be paid within 7 days of submission, to help mitigate wrenches.
+5.  **Subscribe (Optional):** If the provider requires a monthly fee, the user can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access.
+6.  **Request Signature:** When a signature is needed, the client authenticates and submits their PSBT. The platform records the submission time and calculates the `unlocksAt` date based on the provider's specified delay.
+7.  **Receive Signed PSBT:** After the time delay has passed, the signed PSBT is made available to the client.
+8.  **Backup Credentials:** Clients will have access to a secure settings page where, after re-authenticating with 2FA, they can view their credentials and export them to a local file, with strong recommendations to use a password manager.
 
 ## The Provider Flow
 
@@ -46,13 +45,22 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 2.  **Define Service:** They create a service listing, providing:
     - The `xpub` of the key they will use.
     - The key's policy type.
-    - The initial backup fee and the per-signature fee.
-    - An optional **monthly subscription fee**.
+    - **Time-Delay Options:** The provider must set a minimum time delay (default 7 days) before a signed PSBT is returned to the client.
+    - Fees: Initial backup, per-signature, and an optional monthly subscription fee.
     - A **BOLT12 Offer** (`lno...`) for receiving payments.
 3.  **Prove Control:** To be listed, the provider must sign a message with the private key corresponding to the `xpub` they provided. Our backend verifies this signature.
-4.  **Handle Requests:** When a user requests a signature, the provider receives a **push notification**. They log into their dashboard, review the pending PSBT, sign it with their key, and submit the signed PSBT back through the dashboard.
+4.  **Handle Requests:** When a user requests a signature, the provider receives a notification. They must upload the signed PSBT before the signing window expires to avoid a penalty.
 
 ---
+
+## Time-Delay & Penalty System
+
+To mitigate wrench attacks and provide a transparent measure of provider reliability, Seed-E implements a time-delay and penalty system.
+
+- **Provider-Set Delays:** Providers must set a minimum time-delay (in hours) for returning a signed PSBT. This helps protect their clients from being coerced into signing under duress.
+- **Signing Window:** Once a signature is requested and the time-delay period begins, the provider has a fixed window (e.g., time-delay + 7 days) to upload the signed PSBT.
+- **Penalties:** If a provider fails to upload the signed PSBT within this window, their public `penaltyCount` is incremented.
+- **Objective Sorting:** This `penaltyCount` serves as a crucial, non-gameable metric. While Seed-E remains neutral and defaults to a random sort, users can choose to sort providers by "Fewest Penalties," placing the most reliable and responsive providers at the top.
 
 ## Subscription & Dunning Lifecycle
 

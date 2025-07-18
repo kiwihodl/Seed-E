@@ -13,7 +13,9 @@ export default function CreateServiceForm() {
   const [initialBackupFee, setInitialBackupFee] = useState("");
   const [perSignatureFee, setPerSignatureFee] = useState("");
   const [monthlyFee, setMonthlyFee] = useState("");
+  const [annualFee, setAnnualFee] = useState("");
   const [bolt12Offer, setBolt12Offer] = useState("");
+  const [minTimeDelay, setMinTimeDelay] = useState("168");
 
   const [status, setStatus] = useState("");
 
@@ -40,6 +42,8 @@ export default function CreateServiceForm() {
         initialBackupFee: Number(initialBackupFee),
         perSignatureFee: Number(perSignatureFee),
         monthlyFee: monthlyFee ? Number(monthlyFee) : undefined,
+        annualFee: annualFee ? Number(annualFee) : undefined,
+        minTimeDelay: Number(minTimeDelay),
         bolt12Offer,
       }),
     });
@@ -56,7 +60,9 @@ export default function CreateServiceForm() {
       setInitialBackupFee("");
       setPerSignatureFee("");
       setMonthlyFee("");
+      setAnnualFee("");
       setBolt12Offer("");
+      setMinTimeDelay("168");
     } else {
       setStatus(`Error: ${data.error}`);
     }
@@ -182,6 +188,37 @@ export default function CreateServiceForm() {
             id="monthlyFee"
             value={monthlyFee}
             onChange={(e) => setMonthlyFee(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="annualFee"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Annual Fee (sats, optional)
+          </label>
+          <input
+            type="number"
+            id="annualFee"
+            value={annualFee}
+            onChange={(e) => setAnnualFee(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="minTimeDelay"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Minimum Time Delay (hours)
+          </label>
+          <input
+            type="number"
+            id="minTimeDelay"
+            value={minTimeDelay}
+            onChange={(e) => setMinTimeDelay(e.target.value)}
+            required
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </div>
