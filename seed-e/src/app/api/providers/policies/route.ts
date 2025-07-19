@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// In-memory storage for policies (in a real app, this would be in a database)
+const policiesStorage: Array<{
+  id: string;
+  policyType: string;
+  xpub: string;
+  controlSignature: string;
+  initialBackupFee: number;
+  perSignatureFee: number;
+  monthlyFee?: number;
+  minTimeDelay: number;
+  bolt12Offer: string;
+  createdAt: string;
+}> = [];
+
 export async function GET() {
   try {
-    // For now, return empty array since authentication is not fully implemented
-    // In a real implementation, you would get the provider from the session/token
-    // and return their actual policies
-
-    const mockPolicies: Array<{
-      id: string;
-      policyType: string;
-      xpub: string;
-      controlSignature: string;
-      initialBackupFee: number;
-      perSignatureFee: number;
-      monthlyFee?: number;
-      minTimeDelay: number;
-      bolt12Offer: string;
-      createdAt: string;
-    }> = [
-      // Empty array - no mock data for new users
-    ];
-
-    return NextResponse.json({ policies: mockPolicies });
+    // Return the stored policies
+    return NextResponse.json({ policies: policiesStorage });
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch policies" },
@@ -84,24 +80,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For now, just return success
-    // In a real implementation, you would create the service in the database
+    // Create the new policy
+    const newPolicy = {
+      id: Date.now().toString(),
+      policyType,
+      xpub: xpub.trim(),
+      controlSignature: controlSignature.trim(),
+      initialBackupFee: parseInt(initialBackupFee),
+      perSignatureFee: parseInt(perSignatureFee),
+      monthlyFee: monthlyFee ? parseInt(monthlyFee) : undefined,
+      minTimeDelay: timeDelayDays * 24, // Convert days to hours for storage
+      bolt12Offer: bolt12Offer.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add to storage
+    policiesStorage.push(newPolicy);
 
     return NextResponse.json(
       {
         message: "Service created successfully",
-        service: {
-          id: Date.now().toString(),
-          policyType,
-          xpub: xpub.trim(),
-          controlSignature: controlSignature.trim(),
-          initialBackupFee: parseInt(initialBackupFee),
-          perSignatureFee: parseInt(perSignatureFee),
-          monthlyFee: monthlyFee ? parseInt(monthlyFee) : null,
-          minTimeDelay: timeDelayDays * 24, // Convert days to hours for storage
-          bolt12Offer: bolt12Offer.trim(),
-          createdAt: new Date().toISOString(),
-        },
+        service: newPolicy,
       },
       { status: 201 }
     );

@@ -1,8 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
+
+// Validate password strength - moved outside component to prevent recreation
+const validatePassword = (password: string) => {
+  const errors: string[] = [];
+  if (password.length < 8) {
+    errors.push("Password must be at least 8 characters long");
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push("Password must contain at least one uppercase letter");
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push("Password must contain at least one lowercase letter");
+  }
+  if (!/\d/.test(password)) {
+    errors.push("Password must contain at least one number");
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    errors.push(
+      'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)'
+    );
+  }
+  return errors;
+};
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -21,6 +44,8 @@ export default function RegisterPage() {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
   // Debounce timer for username checking
@@ -28,29 +53,8 @@ export default function RegisterPage() {
     null
   );
 
-  // Validate password strength
-  const validatePassword = (password: string) => {
-    const errors: string[] = [];
-    if (password.length < 8) {
-      errors.push("Password must be at least 8 characters long");
-    }
-    if (!/[A-Z]/.test(password)) {
-      errors.push("Password must contain at least one uppercase letter");
-    }
-    if (!/[a-z]/.test(password)) {
-      errors.push("Password must contain at least one lowercase letter");
-    }
-    if (!/\d/.test(password)) {
-      errors.push("Password must contain at least one number");
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-      errors.push("Password must contain at least one special character");
-    }
-    return errors;
-  };
-
   // Check username availability
-  const checkUsernameAvailability = async (username: string) => {
+  const checkUsernameAvailability = useCallback(async (username: string) => {
     if (username.length < 3) {
       setUsernameAvailable(null);
       return;
@@ -58,13 +62,15 @@ export default function RegisterPage() {
 
     setIsCheckingUsername(true);
     try {
-      const response = await fetch("/api/providers/check-username", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username }),
-      });
+      const response = await fetch(
+        `/api/providers/check-username?name=${encodeURIComponent(username)}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       const data = await response.json();
       setUsernameAvailable(data.available);
@@ -73,24 +79,27 @@ export default function RegisterPage() {
     } finally {
       setIsCheckingUsername(false);
     }
-  };
+  }, []);
 
   // Handle username change with debounce
-  const handleUsernameChange = (value: string) => {
-    setFormData({ ...formData, providerName: value });
+  const handleUsernameChange = useCallback(
+    (value: string) => {
+      setFormData((prev) => ({ ...prev, providerName: value }));
 
-    // Clear existing timer
-    if (usernameTimer) {
-      clearTimeout(usernameTimer);
-    }
+      // Clear existing timer
+      if (usernameTimer) {
+        clearTimeout(usernameTimer);
+      }
 
-    // Set new timer for username checking
-    const timer = setTimeout(() => {
-      checkUsernameAvailability(value);
-    }, 500);
+      // Set new timer for username checking
+      const timer = setTimeout(() => {
+        checkUsernameAvailability(value);
+      }, 500);
 
-    setUsernameTimer(timer);
-  };
+      setUsernameTimer(timer);
+    },
+    [usernameTimer, checkUsernameAvailability]
+  );
 
   // Validate form on mount and when formData changes
   useEffect(() => {
@@ -122,7 +131,7 @@ export default function RegisterPage() {
     }
 
     setValidationErrors(errors);
-  }, [formData, validatePassword]);
+  }, [formData]);
 
   const isFormValid = () => {
     return (
@@ -148,7 +157,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3001/api/providers", {
+      const response = await fetch("/api/providers", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -180,10 +189,15 @@ export default function RegisterPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
+
+    // Check username availability when provider name changes
+    if (name === "providerName") {
+      handleUsernameChange(value);
+    }
   };
 
   return (
@@ -240,16 +254,59 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Password
               </label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                placeholder="Create a strong password"
-                required
-                minLength={8}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                  placeholder="Create a strong password"
+                  required
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? (
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {validationErrors.password && (
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
                   {validationErrors.password}
@@ -261,19 +318,67 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Confirm Password
               </label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                placeholder="Confirm your password"
-                required
-                minLength={8}
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                  placeholder="Confirm your password"
+                  required
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showConfirmPassword ? (
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {validationErrors.confirmPassword && (
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
                   {validationErrors.confirmPassword}
+                </p>
+              )}
+              {formData.password === formData.confirmPassword && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  Passwords match!
                 </p>
               )}
             </div>

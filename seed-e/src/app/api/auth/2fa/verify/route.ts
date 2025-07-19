@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as speakeasy from "speakeasy";
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, token } = await request.json();
+    const { username, token, secret } = await request.json();
 
     if (!username || !token) {
       return NextResponse.json(
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For now, just verify the token format (6 digits)
+    // Verify the token format (6 digits)
     const isValidToken = /^\d{6}$/.test(token);
 
     if (!isValidToken) {
@@ -21,8 +22,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mock verification - in a real implementation, you would verify against the stored secret
-    const verified = token === "123456"; // Mock verification
+    // For now, we'll use a mock secret since we don't have session management
+    // In a real implementation, you would retrieve the secret from the database based on the username
+    const mockSecret = "KVEEUQ26MI7H2KCYFJNVALBVLB3WONK6KFBCSLSAFY3GKQTGHZRA"; // This should come from the database
+
+    // Verify the TOTP token
+    const verified = speakeasy.totp.verify({
+      secret: mockSecret,
+      encoding: "base32",
+      token: token,
+      window: 1, // Allow 1 time step in either direction for clock skew
+    });
 
     return NextResponse.json({ verified });
   } catch (error) {

@@ -19,21 +19,29 @@ export default function Setup2FAPage() {
 
   const generate2FASetup = async () => {
     try {
-      const response = await fetch("/api/auth/setup-2fa", {
+      // For now, use a mock username since we don't have session management yet
+      const mockUsername = "testuser"; // This should come from the session/context
+
+      const response = await fetch("/api/auth/2fa/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          username: mockUsername,
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setQrCode(data.qrCode);
+        setQrCode(data.qrCodeDataURL);
         setSecret(data.secret);
       } else {
-        setError("Failed to generate 2FA setup");
+        const errorData = await response.json();
+        setError(errorData.error || "Failed to generate 2FA setup");
       }
-    } catch {
+    } catch (error) {
+      console.error("2FA setup error:", error);
       setError("Network error. Please try again.");
     }
   };
@@ -44,27 +52,34 @@ export default function Setup2FAPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/auth/verify-2fa", {
+      const response = await fetch("/api/auth/2fa/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          secret,
-          code: verificationCode,
+          username: "testuser", // This should come from the session/context
+          token: verificationCode,
+          secret: secret, // Pass the secret for proper validation
         }),
       });
 
       if (response.ok) {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push("/generate-recovery-key");
-        }, 2000);
+        const data = await response.json();
+        if (data.verified) {
+          setSuccess(true);
+          setTimeout(() => {
+            router.push("/generate-recovery-key");
+          }, 2000);
+        } else {
+          setError("Invalid verification code. Please try again.");
+        }
       } else {
         const data = await response.json();
         setError(data.error || "Invalid verification code");
       }
-    } catch {
+    } catch (error) {
+      console.error("2FA verification error:", error);
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -95,7 +110,7 @@ export default function Setup2FAPage() {
               2FA Setup Complete!
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Redirecting to dashboard...
+              Redirecting to recovery key generation...
             </p>
           </div>
         </div>

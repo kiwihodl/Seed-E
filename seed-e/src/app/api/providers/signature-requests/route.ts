@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    // Mock data for now
+    // Return empty array for now - no pending requests
     const mockRequests: Array<{
       id: string;
       createdAt: string;
@@ -11,18 +11,7 @@ export async function GET() {
       clientUsername: string;
       servicePolicyType: string;
       perSignatureFee: string;
-    }> = [
-      {
-        id: "1",
-        createdAt: new Date().toISOString(),
-        unsignedPsbt:
-          "cHNidP8BAF4CAAAAAYGoktqXyJZiSqE9C+vnA7kFZHyprLm1iIhM5Y1aXzKNAAAAAAAA",
-        unlocksAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-        clientUsername: "testuser",
-        servicePolicyType: "P2TR",
-        perSignatureFee: "1000",
-      },
-    ];
+    }> = [];
 
     return NextResponse.json({ pendingRequests: mockRequests });
   } catch {
