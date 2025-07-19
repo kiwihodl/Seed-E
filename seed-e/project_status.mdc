@@ -5,152 +5,103 @@ alwaysApply: false
 ---
 # Seed-E Project Status
 
-## CRITICAL: TAILWIND CSS VERSION REQUIREMENT
-**DO NOT USE TAILWIND CSS v4** - It causes dark mode issues and conflicts with theme management. 
-**MUST USE TAILWIND CSS v3** for proper dark mode functionality.
+## 🎯 **Current Status: Real Key Integration COMPLETED**
 
-## CRITICAL: SERVER MANAGEMENT
+### **Phase 1: Core Infrastructure ✅ COMPLETED**
+- ✅ Next.js 15 with App Router and TypeScript
+- ✅ Tailwind CSS v3 with dark mode support
+- ✅ Prisma ORM with PostgreSQL database
+- ✅ Authentication system with 2FA
+- ✅ Provider and Client dashboards
+- ✅ Basic signature request flow
+
+### **Phase 2: Real Key Integration ✅ COMPLETED**
+- ✅ Migrated provider policies API to use Prisma database
+- ✅ Added real Bitcoin key validation using bip32 and tiny-secp256k1
+- ✅ Added Base64 signature validation (64 bytes for ECDSA)
+- ✅ Added BOLT12 offer format validation
+- ✅ Created real test data generation script
+- ✅ Fixed server startup and Docker container management
+- ✅ Added duplicate xpub validation to prevent same key being used twice
+- ✅ Added "Fill Test Data" button for easier testing with fresh real data
+- ✅ Added "Clear Form" button for form reset
+- ✅ Added clickable key cards with detailed modal view
+- ✅ Improved form validation with error messages
+- ✅ Added visual indicators for clickable elements
+- ✅ **NO MORE DUMMY DATA** - All test data is cryptographically valid
+
+### **Phase 3: Key Derivation and Management (NEXT)**
+- 🔄 Implement key derivation from master keys
+- 🔄 Add key backup and recovery functionality
+- 🔄 Implement key rotation and replacement
+- 🔄 Add key usage analytics and monitoring
+
+### **Phase 4: Service Discovery and Integration (PLANNED)**
+- ⏳ Implement service discovery protocol
+- ⏳ Add Lightning Network integration for payments
+- ⏳ Implement client-provider communication
+- ⏳ Add automated signature request processing
+
+## 🚀 **Recent Achievements**
+
+### **Real Bitcoin Integration**
+- **Fresh Key Generation**: Each "Fill Test Data" click generates unique real Bitcoin keys
+- **Cryptographic Validation**: All signatures are real ECDSA (64 bytes)
+- **Duplicate Prevention**: System prevents same xpub being used twice
+- **Real BIP32 Derivation**: Uses proper Bitcoin key derivation paths
+
+### **Enhanced User Experience**
+- **Interactive Key Cards**: Click to view full key details in modal
+- **Real-time Validation**: Form validates as you type
+- **Visual Feedback**: Clear indicators for clickable elements
+- **Error Prevention**: Comprehensive validation prevents invalid submissions
+
+### **Technical Improvements**
+- **API Endpoints**: `/api/generate-test-data` for fresh real data
+- **Database Integration**: Full Prisma integration with PostgreSQL
+- **Error Handling**: Comprehensive error messages and validation
+- **Performance**: Optimized form validation and state management
+
+## 🔧 **Current "Add Key" Functionality:**
+- ✅ **Real Bitcoin xpub validation** using BIP32
+- ✅ **Real ECDSA signature validation** (64 bytes)
+- ✅ **Real BOLT12 offer validation**
+- ✅ **Duplicate key prevention**
+- ✅ **Fresh real data generation** on demand
+- ✅ **Interactive key management** with detailed views
+
+## 📊 **Database Schema:**
+- ✅ **Provider model** with authentication
+- ✅ **Service model** with real Bitcoin data
+- ✅ **Client model** for user management
+- ✅ **SignatureRequest model** for transaction flow
+- ✅ **SubscriptionRequest model** for payments
+
+## 🎯 **Next Steps:**
+1. **Phase 3**: Implement key derivation and management
+2. **Phase 4**: Add service discovery and Lightning integration
+3. **Testing**: Comprehensive testing with real Bitcoin scenarios
+4. **Documentation**: Complete API documentation and user guides
+
+## 🛠 **Technical Stack:**
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS
+- **Backend**: Next.js API routes, Prisma ORM
+- **Database**: PostgreSQL with Docker
+- **Bitcoin**: bitcoinjs-lib, bip32, tiny-secp256k1
+- **Authentication**: TOTP 2FA with speakeasy
+- **Validation**: Real-time form validation with error handling
+
+## 🚨 **CRITICAL: SERVER MANAGEMENT**
 **ALWAYS CHECK FOR EXISTING SERVER FIRST** - Before running `npm run dev` or starting any server, check if one is already running:
 - Use `ps aux | grep "next dev"` to check for existing server
 - Use `curl -I http://localhost:3000` to test if server is responding
 - Only start new server if none exists or current one is not responding
 - User already has terminal running - don't start new servers unnecessarily
 
-## Summary
-Seed-E is a Bitcoin multisig service platform that connects clients and providers for signing and backup services. The application is now fully functional with persistent light/dark mode support, comprehensive error handling, and all core features implemented.
-
-## Recent Updates (Latest Session)
-- ✅ **Fixed Authentication Flow**: Resolved "Username, password, and 2FA token are required" error
-- ✅ **Implemented Persistent Light/Dark Mode**: 
-  - Added theme persistence using localStorage
-  - Updated existing theme toggle to work across all pages
-  - All pages now support both light and dark modes
-  - Theme preference persists across browser sessions
-- ✅ **Enhanced UI/UX**: 
-  - Fixed button white border flash by removing focus rings
-  - Updated logout to redirect to home page instead of login
-  - Added username display in dashboard title
-  - Fixed policies API error with mock data
-  - Improved form styling for both light and dark modes
-- ✅ **Color Scheme**: Primary accent color is #FF9500 (orange) for buttons, focus states, and interactive elements
-- ✅ **Form Validation**: Comprehensive input validation and error handling
-- ✅ **Responsive Design**: Mobile-friendly layout with proper spacing
-
-## Core Features Implemented
-
-### Provider Management
-- ✅ Provider registration with comprehensive form
-- ✅ Service configuration (policy type, xpub, control signature)
-- ✅ Pricing setup (backup fee, signature fee, monthly fee)
-- ✅ Time delay configuration (in days)
-- ✅ BOLT12 offer integration
-- ✅ Provider dashboard with signature request management
-
-### Authentication & Security
-- ✅ 2FA generation and verification
-- ✅ Secure password handling
-- ✅ TOTP implementation with speakeasy
-- ✅ Recovery key generation and confirmation
-- ✅ Persistent user sessions with localStorage
-
-### API Endpoints
-- ✅ `/api/providers` - Provider registration
-- ✅ `/api/auth/login` - User authentication
-- ✅ `/api/auth/2fa/generate` - 2FA setup
-- ✅ `/api/auth/2fa/verify` - 2FA verification
-- ✅ `/api/auth/generate-recovery-key` - Recovery key generation
-- ✅ `/api/auth/confirm-recovery-key` - Recovery key confirmation
-- ✅ `/api/providers/signature-requests` - Signature request management
-- ✅ `/api/providers/policies` - Service policy management
-- ✅ `/api/services` - Service discovery
-- ✅ `/api/signatures` - Signature requests
-- ✅ `/api/subscriptions/nip47` - NIP-47 subscription payments
-
-### Database Schema
-- ✅ Provider and Client models
-- ✅ Service configuration
-- ✅ Signature requests with time delays
-- ✅ Subscription management
-- ✅ 2FA secrets storage
-
-### UI Components
-- ✅ Persistent light/dark mode with theme toggle
-- ✅ Registration form with proper validation
-- ✅ Login page with 2FA flow
-- ✅ Provider dashboard with signature management
-- ✅ Recovery key generation page
-- ✅ Modal components for signature requests
-
-## Technical Stack
-- **Frontend**: Next.js 15 with App Router, TypeScript, Tailwind CSS v3 (NOT v4)
-- **Backend**: Next.js API routes with Prisma ORM
-- **Database**: PostgreSQL with Docker container
-- **Authentication**: TOTP 2FA with speakeasy
-- **Payments**: Lightning Network integration
-- **Styling**: Persistent light/dark mode with #FF9500 orange accent color
-
-## Current Status: ✅ READY FOR TESTING
-
-The application is now fully functional and ready for comprehensive testing. All core features are implemented with proper error handling, persistent theme support, and excellent user experience.
-
-## Development Guidelines for Future Work
-
-### CRITICAL: Tailwind CSS Version
-- **MUST USE**: Tailwind CSS v3.x
-- **NEVER USE**: Tailwind CSS v4.x (causes dark mode conflicts)
-- **Configuration**: Use `darkMode: 'class'` in tailwind.config.js
-- **Theme Management**: Use `dark` class on html element for dark mode
-
-### Theme Support Requirements
-**ALL new pages and components MUST support both light and dark modes:**
-
-1. **Background Colors**: Use `bg-gray-50 dark:bg-gray-900` for main backgrounds
-2. **Surface Colors**: Use `bg-white dark:bg-gray-800` for cards and containers
-3. **Text Colors**: Use `text-gray-900 dark:text-white` for headings, `text-gray-600 dark:text-gray-300` for body text
-4. **Border Colors**: Use `border-gray-200 dark:border-gray-700` for dividers, `border-gray-300 dark:border-gray-600` for inputs
-5. **Input Fields**: Use `bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400`
-6. **Error States**: Use `text-red-600 dark:text-red-400` and `bg-red-50 dark:bg-red-900/20`
-7. **Success States**: Use `text-green-600 dark:text-green-400` and `bg-green-50 dark:bg-green-900/20`
-8. **Buttons**: Remove focus rings with `focus:outline-none` to prevent white border flash
-
-### Color Scheme
-- **Primary Accent**: #FF9500 (Orange) - Used for buttons, focus states, and interactive elements
-- **Light Mode Background**: Gray-50 for main background, white for surfaces
-- **Dark Mode Background**: Gray-900 for main background, gray-800 for surfaces
-- **Text**: Gray-900/white for headings, gray-600/gray-300 for body text
-- **Borders**: Gray-200/gray-700 for dividers, gray-300/gray-600 for inputs
-
-### Theme Implementation Pattern
-```tsx
-// Example component with proper theme support
-<div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-  <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
-    <h1 className="text-gray-900 dark:text-white">Title</h1>
-    <p className="text-gray-600 dark:text-gray-300">Body text</p>
-    <input className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600" />
-    <button className="bg-[#FF9500] text-black focus:outline-none">Action</button>
-  </div>
-</div>
-```
-
-## Next Steps
-1. **Manual Testing**: Complete end-to-end testing of all user flows
-2. **Database Setup**: Ensure PostgreSQL container is running
-3. **Environment Configuration**: Verify all environment variables are set
-4. **Production Deployment**: Prepare for Vercel/Railway deployment
-5. **Advanced Features**: Implement wallet plugin and NIP-47 payments
-6. **Client Dashboard**: Implement client-side dashboard for signature requests
-7. **Payment Integration**: Complete Lightning Network payment flow
-
-## Known Issues Resolved
-- ✅ Authentication errors in provider dashboard
-- ✅ Policies API returning errors
-- ✅ Button white border flash on click
-- ✅ Logout redirecting to wrong page
-- ✅ Missing username in dashboard title
-- ✅ Generate recovery key page not supporting light mode
-- ✅ Theme not persisting across sessions
-
-## Known Issues to Fix
-- ❌ **CRITICAL**: Dark mode toggle not working due to Tailwind CSS v4 conflicts
-- ❌ **CRITICAL**: Need to downgrade to Tailwind CSS v3 for proper dark mode functionality
+## 🚨 **CRITICAL: DIRECTORY CONFUSION**
+**DO NOT ASSUME WRONG DIRECTORY** - If localhost:3000 is working, the server IS running:
+- User is in `/Users/homefolder/Desktop/Seed-E` (correct for this project)
+- Server is running via Docker/PostgreSQL setup
+- If localhost responds, server is working - focus on actual errors
+- Don't suggest `cd seed-e` when localhost is already working
+- The issue is likely API validation, not directory problems

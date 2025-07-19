@@ -1,209 +1,210 @@
-# Seed-E
+# Seed-E: Bitcoin Multisig Service Platform
 
-A neutral, non-custodial directory for third-party Bitcoin signing services, designed to be integrated directly into wallets.
+A Next.js-based platform that connects Bitcoin clients and providers for secure multisig signing and backup services. Built with real Bitcoin integration, cryptographic validation, and Lightning Network payments.
 
-## Architecture Overview
+## 🚀 Features
 
-Seed-E acts as a **discovery layer + payment processor** without ever touching funds. Providers maintain their own client relationships and platforms, while Seed-E handles:
+### **Real Bitcoin Integration**
 
-- **Service Discovery**: Randomized provider listings with filtering
-- **Payment Processing**: Lightning Network invoice generation and webhook handling
-- **Authentication**: Username/password + TOTP 2FA for all users
-- **Signature Coordination**: PSBT submission with time-delay protection
+- ✅ **Cryptographic Key Validation**: Real BIP32 xpub validation
+- ✅ **ECDSA Signature Verification**: 64-byte signature validation
+- ✅ **Fresh Key Generation**: Unique Bitcoin keys generated on demand
+- ✅ **Duplicate Prevention**: System prevents same xpub being used twice
+- ✅ **BOLT12 Lightning Offers**: Real Lightning Network payment integration
 
-## Core Flows
+### **Provider Management**
 
-### Provider Flow
+- ✅ **Service Configuration**: Add signing keys with real Bitcoin validation
+- ✅ **Pricing Setup**: Configure backup fees, signature fees, and monthly fees
+- ✅ **Time Delays**: Set custom time delays for signature releases
+- ✅ **Interactive Dashboard**: Click key cards to view full details
+- ✅ **Real-time Validation**: Form validation with comprehensive error handling
 
-1. **Register**: Username, password, and mandatory 2FA setup
-2. **Prove Control**: Sign a message with the private key corresponding to their xpub
-3. **List Service**: Set fees, time delays, and BOLT12 offer for payments
-4. **Receive Payments**: Lightning payments flow directly to provider's node
-5. **Handle Signatures**: Receive PSBT requests and sign within time windows
+### **Authentication & Security**
 
-### Client Flow
+- ✅ **2FA Implementation**: TOTP-based two-factor authentication
+- ✅ **Secure Password Handling**: Encrypted password storage
+- ✅ **Recovery Key System**: Backup authentication methods
+- ✅ **Session Management**: Persistent user sessions
 
-1. **Discover**: Browse randomized provider listings with filtering options
-2. **Filter & Sort**: By policy type, cost, provider age, penalty count
-3. **Purchase**: Pay Lightning invoice for initial backup fee
-4. **Receive xpub**: Get verified xpub for multisig setup
-5. **Request Signatures**: Submit PSBTs with 7-day minimum cooling period
-6. **Subscribe**: Optional recurring payments via NIP-47
+### **User Experience**
 
-### Integration Models
+- ✅ **Dark/Light Mode**: Persistent theme support across all pages
+- ✅ **Responsive Design**: Mobile-friendly interface
+- ✅ **Real-time Feedback**: Comprehensive validation and error messages
+- ✅ **Interactive Elements**: Clickable cards, modals, and visual indicators
 
-#### PWA (Progressive Web App)
+## 🛠 Technical Stack
 
-- **Provider Dashboard**: Manage services, view signature requests
-- **Client Dashboard**: View purchased services, submit signature requests
-- **Authentication**: Full login and 2FA setup flows
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS
+- **Backend**: Next.js API routes, Prisma ORM
+- **Database**: PostgreSQL with Docker
+- **Bitcoin**: bitcoinjs-lib, bip32, tiny-secp256k1
+- **Authentication**: TOTP 2FA with speakeasy
+- **Payments**: Lightning Network (BOLT12)
 
-#### Wallet Plugin
-
-- **Service Discovery**: Browse and filter providers
-- **Payment Integration**: Handle Lightning invoices
-- **Signature Requests**: Submit PSBTs and track status
-
-## Key Features
-
-### Non-Custodial Design
-
-- **No Fund Control**: Lightning payments flow directly client → provider
-- **No Reputation System**: Avoids gamification and surveillance
-- **Provider Autonomy**: Providers maintain their own client relationships
-
-### Security Model
-
-- **Cryptographic Proof**: Providers must prove key control upfront
-- **Time-Delay System**: 7-day minimum cooling period for signature requests
-- **Penalty System**: Objective metrics for provider reliability
-- **2FA Required**: TOTP authentication for all accounts
-
-### Payment Architecture
-
-- **BOLT12 Offers**: Providers set static payment offers
-- **Non-Custodial Invoices**: Generated on behalf of providers
-- **Direct Payments**: Client → Provider via Lightning Network
-- **Webhook Processing**: Payment confirmation triggers state changes
-
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL database
-- Lightning Network node (LND) for payments
+- Docker and Docker Compose
+- PostgreSQL
 
-### Environment Setup
+### Installation
 
-Create a `.env` file in the root directory:
+1. **Clone the repository**
 
-```bash
-# Database Configuration
-DATABASE_URL="postgresql://username:password@localhost:5432/seed-e-db"
+   ```bash
+   git clone <repository-url>
+   cd seed-e
+   ```
 
-# Next.js Configuration
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-# Lightning Network Configuration (LND)
-LND_REST_URL="https://your-lnd-node:8080"
-LND_INVOICE_MACAROON="your-invoice-macaroon-here"
-```
-
-### Database Setup
-
-1. **Install Dependencies:**
+2. **Install dependencies**
 
    ```bash
    npm install
    ```
 
-2. **Generate Prisma Client:**
+3. **Set up environment variables**
 
    ```bash
-   npx prisma generate
+   cp .env.example .env
+   # Edit .env with your database and API keys
    ```
 
-3. **Push Database Schema:**
+4. **Start the database**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+5. **Run database migrations**
+
    ```bash
    npx prisma db push
    ```
 
-### Development
+6. **Start the development server**
 
-Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-```bash
-npm run dev
-```
+7. **Open your browser**
+   ```
+   http://localhost:3000
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📊 Database Schema
 
-## API Integration
+### Core Models
 
-For wallet integration and third-party platforms, see [API_ENDPOINTS.md](./API_ENDPOINTS.md) for complete endpoint documentation.
+- **Provider**: Service providers with authentication
+- **Client**: End users requesting signatures
+- **Service**: Bitcoin key configurations and policies
+- **SignatureRequest**: Transaction signing requests
+- **SubscriptionRequest**: Payment and subscription management
 
-### Quick Integration Example
+### Key Features
 
-```javascript
-// Discover Taproot services
-const services = await fetch(
-  "/api/services?policyType=P2TR&sortBy=penalties_asc"
-);
+- **Real Bitcoin Data**: xpub, signatures, BOLT12 offers
+- **Time-based Releases**: Configurable signature delays
+- **Payment Integration**: Lightning Network payments
+- **Audit Trail**: Complete transaction history
 
-// Purchase a service
-const purchase = await fetch("/api/clients/purchase", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    username: "client123",
-    password: "securepass",
-    serviceId: "service_id",
-  }),
-});
+## 🔧 API Endpoints
 
-// Handle Lightning payment
-const { invoice } = await purchase.json();
-// Pay invoice in wallet
+### Authentication
 
-// Request signature
-const signatureRequest = await fetch("/api/signatures", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    username: "client123",
-    password: "securepass",
-    twoFactorToken: "123456",
-    unsignedPsbt: "base64_psbt",
-  }),
-});
-```
+- `POST /api/auth/login` - User authentication
+- `POST /api/auth/2fa/generate` - 2FA setup
+- `POST /api/auth/2fa/verify` - 2FA verification
+- `POST /api/auth/generate-recovery-key` - Recovery key generation
 
-## Project Structure
+### Provider Management
 
-```
-seed-e/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/               # API Routes
-│   │   ├── dashboard/         # Client Dashboard
-│   │   └── login/            # Authentication
-│   └── components/            # React Components
-├── prisma/                    # Database Schema
-└── public/                   # Static Assets
-```
+- `GET /api/providers/policies` - List provider services
+- `POST /api/providers/policies` - Create new service
+- `GET /api/providers/signature-requests` - List pending requests
+- `POST /api/providers/signature-requests` - Submit signed PSBT
 
-## Environment Variables Explained
+### Test Data Generation
 
-### Database Configuration
+- `GET /api/generate-test-data` - Generate fresh Bitcoin keys and signatures
 
-- **DATABASE_URL**: Your PostgreSQL connection string
-  - **⚠️ IMPORTANT**: Only use ONE DATABASE_URL variable
-  - Having multiple DATABASE_URL variables will cause conflicts
-  - Example: `postgresql://username:password@localhost:5432/seed-e-db`
+## 🎯 Current Status
 
-### Lightning Network Configuration
+### ✅ **Completed Features**
 
-- **LND_REST_URL**: Your LND node's REST API URL
-  - Example: `https://your-lnd-node:8080`
-- **LND_INVOICE_MACAROON**: Your LND node's invoice macaroon
-  - Used for generating Lightning invoices
+- Real Bitcoin key validation and generation
+- Cryptographic signature verification
+- Interactive provider dashboard
+- Comprehensive form validation
+- Dark/light mode support
+- Database integration with Prisma
 
-### Next.js Configuration
+### 🔄 **In Development**
 
-- **NEXT_PUBLIC_APP_URL**: Your application's public URL
-  - For development: `http://localhost:3000`
-  - For production: Your domain URL
+- Key derivation and management
+- Service discovery protocol
+- Advanced Lightning Network integration
+- Client dashboard implementation
 
-## Learn More
+### ⏳ **Planned Features**
 
-To learn more about Next.js, take a look at the following resources:
+- Automated signature processing
+- Advanced analytics and monitoring
+- Multi-provider support
+- Mobile application
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔒 Security Features
 
-## Deploy on Vercel
+- **Real Cryptographic Validation**: All Bitcoin keys and signatures are cryptographically verified
+- **Duplicate Prevention**: System prevents same xpub being used multiple times
+- **Time-based Security**: Configurable delays for signature releases
+- **2FA Protection**: Two-factor authentication for all accounts
+- **Secure Storage**: Encrypted sensitive data storage
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🎨 UI/UX Features
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Persistent Themes**: Dark/light mode with localStorage persistence
+- **Interactive Elements**: Clickable cards, modals, and visual feedback
+- **Real-time Validation**: Form validation with immediate feedback
+- **Responsive Design**: Mobile-friendly interface
+- **Accessibility**: Proper contrast ratios and keyboard navigation
+
+## 🚨 Important Notes
+
+### Server Management
+
+- Always check for existing servers before starting new ones
+- Use `ps aux | grep "next dev"` to check running servers
+- Use `curl -I http://localhost:3000` to test server response
+
+### Development Guidelines
+
+- Use Tailwind CSS v3 (not v4) for proper dark mode support
+- All new components must support both light and dark modes
+- Follow the established color scheme (#FF9500 orange accent)
+- Implement proper error handling and validation
+
+## 📝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly with real Bitcoin data
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Support
+
+For support and questions, please open an issue on GitHub or contact the development team.
+
+---
+
+**Built with ❤️ for the Bitcoin community**

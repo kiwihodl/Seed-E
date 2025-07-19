@@ -53,6 +53,10 @@ export default function ProviderDashboard() {
   const [isDark, setIsDark] = useState(true);
   const [timeDelayError, setTimeDelayError] = useState("");
   const [xpubError, setXpubError] = useState("");
+  const [xpubDuplicateError, setXpubDuplicateError] = useState("");
+  const [selectedKeyDetails, setSelectedKeyDetails] =
+    useState<ServicePolicy | null>(null);
+  const [showKeyModal, setShowKeyModal] = useState(false);
   const router = useRouter();
 
   // Debounce timer for time delay validation
@@ -120,12 +124,21 @@ export default function ProviderDashboard() {
   const validateXpub = (value: string) => {
     if (!value) {
       setXpubError("");
+      setXpubDuplicateError("");
       return;
     }
     if (!value.startsWith("xpub") && !value.startsWith("zpub")) {
       setXpubError("Extended public key must start with 'xpub' or 'zpub'");
+      setXpubDuplicateError("");
     } else {
       setXpubError("");
+      // Check for duplicates
+      const isDuplicate = policies.some((policy) => policy.xpub === value);
+      if (isDuplicate) {
+        setXpubDuplicateError("This extended public key is already in use");
+      } else {
+        setXpubDuplicateError("");
+      }
     }
   };
 
@@ -140,6 +153,7 @@ export default function ProviderDashboard() {
       addKeyForm.minTimeDelayDays &&
       addKeyForm.bolt12Offer &&
       !xpubError &&
+      !xpubDuplicateError &&
       !timeDelayError &&
       parseInt(addKeyForm.minTimeDelayDays) >= 7 &&
       parseInt(addKeyForm.minTimeDelayDays) <= 365
@@ -285,6 +299,7 @@ export default function ProviderDashboard() {
         });
         setTimeDelayError("");
         setXpubError("");
+        setXpubDuplicateError("");
         // Refresh policies
         fetchPolicies();
       } else {
@@ -718,6 +733,11 @@ export default function ProviderDashboard() {
                     {xpubError}
                   </p>
                 )}
+                {xpubDuplicateError && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                    {xpubDuplicateError}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Must start with &apos;xpub&apos; or &apos;zpub&apos;. Click
                   the paste icon to paste from clipboard.
@@ -831,7 +851,65 @@ export default function ProviderDashboard() {
                 </p>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end space-x-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={async () => {
+                    try {
+                      // Generate fresh real Bitcoin data
+                      const response = await fetch("/api/generate-test-data", {
+                        method: "GET",
+                      });
+
+                      if (response.ok) {
+                        const testData = await response.json();
+                        setAddKeyForm({
+                          policyType: "P2WSH",
+                          xpub: testData.xpub,
+                          controlSignature: testData.controlSignature,
+                          initialBackupFee: "50000",
+                          perSignatureFee: "1000",
+                          monthlyFee: "",
+                          minTimeDelayDays: "7",
+                          bolt12Offer: testData.bolt12Offer,
+                        });
+                        setTimeDelayError("");
+                        setXpubError("");
+                        setXpubDuplicateError("");
+                      } else {
+                        console.error("Failed to generate test data");
+                      }
+                    } catch (error) {
+                      console.error("Error generating test data:", error);
+                    }
+                  }}
+                >
+                  Fill Test Data
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={() => {
+                    setAddKeyForm({
+                      policyType: "",
+                      xpub: "",
+                      controlSignature: "",
+                      initialBackupFee: "",
+                      perSignatureFee: "",
+                      monthlyFee: "",
+                      minTimeDelayDays: "",
+                      bolt12Offer: "",
+                    });
+                    setTimeDelayError("");
+                    setXpubError("");
+                    setXpubDuplicateError("");
+                  }}
+                >
+                  Clear Form
+                </Button>
                 <Button
                   type="submit"
                   variant="primary"
@@ -859,13 +937,38 @@ export default function ProviderDashboard() {
                 {policies.map((policy) => (
                   <div
                     key={policy.id}
-                    className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md"
+                    className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
+                    onClick={() => {
+                      setSelectedKeyDetails(policy);
+                      setShowKeyModal(true);
+                    }}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-gray-900 dark:text-white font-medium">
-                          {policy.policyType}
-                        </p>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <p className="text-gray-900 dark:text-white font-medium">
+                            {policy.policyType}
+                          </p>
+                          <svg
+                            className="w-4 h-4 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            />
+                          </svg>
+                        </div>
                         <p className="text-gray-500 dark:text-gray-400 text-sm">
                           Initial Fee: {policy.initialBackupFee} sats
                         </p>
@@ -894,6 +997,167 @@ export default function ProviderDashboard() {
             )}
           </div>
         </div>
+
+        {/* Key Details Modal */}
+        {showKeyModal && selectedKeyDetails && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Key Details
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowKeyModal(false);
+                    setSelectedKeyDetails(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Policy Type
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedKeyDetails.policyType}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Initial Backup Fee (sats)
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedKeyDetails.initialBackupFee.toLocaleString()}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Per Signature Fee (sats)
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedKeyDetails.perSignatureFee.toLocaleString()}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  {selectedKeyDetails.monthlyFee && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Monthly Fee (sats)
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedKeyDetails.monthlyFee.toLocaleString()}
+                        readOnly
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Time Delay (days)
+                    </label>
+                    <input
+                      type="text"
+                      value={Math.floor(selectedKeyDetails.minTimeDelay / 24)}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Created
+                    </label>
+                    <input
+                      type="text"
+                      value={formatDate(selectedKeyDetails.createdAt)}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Extended Public Key (xpub)
+                  </label>
+                  <textarea
+                    value={selectedKeyDetails.xpub}
+                    readOnly
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Control Signature (Base64)
+                  </label>
+                  <textarea
+                    value={selectedKeyDetails.controlSignature}
+                    readOnly
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    BOLT12 Offer
+                  </label>
+                  <textarea
+                    value={selectedKeyDetails.bolt12Offer}
+                    readOnly
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-6">
+                <Button
+                  onClick={() => {
+                    setShowKeyModal(false);
+                    setSelectedKeyDetails(null);
+                  }}
+                  variant="secondary"
+                  size="md"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Signature Requests List */}
