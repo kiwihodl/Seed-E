@@ -1,40 +1,41 @@
 # Seed-E
 
-A neutral, non-custodial directory for third-party Bitcoin signing services, designed to be integrated directly into wallets.
+A non-custodial directory for third-party Bitcoin signing services, designed to be integrated directly into wallets or self hosted as your own instance.
 
 ---
 
 ## The Problem (Why Seed-E is Needed)
 
-Setting up a robust multisignature wallet often involves a difficult choice for where your keys are located. Finding a trustworthy and technically compatible third-party signing service, in a different geographical location, to mitigate wrenches and 6102 attempts, is a major hurdle. Users are left to navigate a fragmented landscape of trust based on social media presence for individuals, or KYC with companies which these centralized institutions reintroduce a 6102 attack vector, while needing your XPub which means they track and know all of your corresponding balances and transactions. There is no standardized way to engage or verify non-kyc backup key services, until now.
+Setting up a robust multisignature wallet often involves a difficult choice for where your keys are located. Finding a trustworthy and technically compatible third-party signing service, in a different geographical location, to mitigate wrenches and 6102 attempts, is a major hurdle. Clients are left to navigate a fragmented landscape of trust based on social media presence for individuals, or KYC with companies where these centralized institutions reintroduce a 6102 attack vector, while needing your XPub which means they track and know all of your corresponding balances and transactions. There is no standardized way to engage for verify non-kyc backup key services, until now.
 
-This creates a significant barrier to entry for users wanting to improve their security with a `m-of-n` setup that can (subjectively) include a reliable, professional and reputable third-party.
+This creates a significant barrier to entry for clientss wanting to improve their security with a `m-of-n` setup that can include a reliable, professional and reputable third-party (subjective).
 
 ## The Solution (What Seed-E Is)
 
-Seed-E is an **unopinionated directory**, not a ratings agency. It acts as a plugin for wallets, providing a simple, secure, and neutral platform for users to find and engage with third-party signing service providers. It is the clients responsibility to gauge the trust-worthiness of provider, who is the back up key and signer. Any way of measuring trust and reputation by Seed-E can be gamified or leads to spying, which we refuse to engage in any way.
+Seed-E is an **unopinionated directory**, not a ratings agency. It acts as a plugin for wallets or can be used as a standablone self-hosted service, providing a simple, secure, and neutral platform for clients to find and engage with third-party signing service providers. It is the clients responsibility to gauge the trust-worthiness of provider, who is the back up key and signer. Any way of measuring trust and reputation by Seed-E (beyond the providers creation date) can be gamified or leads to spying, which we refuse to engage in any way.
 
-Our core mission is to facilitate a connection by verifying one thing and one thing only: **that the provider has cryptographic control of the key they offer**. We do not rank, rate, or recommend beyond tenure which is an optional filter. We provide objective data and a secure transaction layer, empowering the user to make their own decision.
+Our core mission is to facilitate a connection by verifying one thing and one thing only: **that the provider has cryptographic control of the key they offer**. We do not rank, rate, or recommend beyond tenure which is an optional filter for the client. We provide objective data and a secure transaction layer, empowering the client to make their own decision.
 
 ### Core Principles
 
 - **Absolutely Non-Custodial:** We never touch clients or providers funds. All payments are peer-to-peer over the Lightning Network using Bolt12.
+- **Privacy:** Both providers and clients get a master key, there is no emails, no KYC and all xpubs / zpubs shared are hashed and stored in the DB to minimize key reuse. Even if the DB was breached, all that they would see is usernames and hashes. Have fun with your Bitcoin!
 - **Platform Neutrality:** The default provider list is randomized on every load. We do not play favorites. There is no "top spot" to pay for.
-- **User Sovereignty:** The user is in control. They filter the list based on objective, verifiable data (cost, key type, providers tenure) and make their own informed choice.
+- **Sovereignty:** The client is in control. They filter the list based on objective, verifiable data (cost, key type, providers tenure) and make their own informed choice.
 - **Minimalist Trust:** We verify the provider's key control upfront. After that, the trust relationship is between the client and the provider, where it belongs.
 - **Robust Lifecycle Management:** The platform includes automated warnings and clear processes for handling overdue subscription payments, ensuring fairness for both clients and providers.
 
 ---
 
-## The User Flow
+## The Client Flow
 
-1.  **Discover:** Inside their wallet's multisig setup if they have the plugin, or in our PWA (progressive web app), the user selects from the keys available.
-2.  **Filter & Sort:** The user is shown a **randomized** list of providers. They can filter the list and also apply a sort order:
+1.  **Discover:** Inside their wallet's multisig setup if they have the plugin, or in our PWA (progressive web app), the client selects from the keys available.
+2.  **Filter & Sort:** The client is shown a **randomized** list of providers. They can filter the list and also apply a sort order:
     - **Filters:** Key Policy Type, Cost (Backup, Signature, or Subscripton - Monthly / Annualy), Provider Since (registration date).
     - **Sort Options:** Default (Random), Fewest Penalties, Longest Time Delay.
-3.  **Pay:** The user selects a provider and is presented with a Lightning invoice. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days or forever but with a higher signing fee and / or intial fee).
+3.  **Pay:** The client selects a provider and is presented with a Lightning invoice. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days or forever but with a higher signing fee and / or intial fee).
 4.  **Receive:** Upon successful payment, the provider's verified `xpub` is immediately delivered to the clients dashboard for inclusion in their multisig configuration.
-5.  **Subscribe (Optional):** If the provider requires a monthly fee, the user can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access.
+5.  **Subscribe (Optional):** If the provider requires a monthly fee, the client can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access.
 6.  **Request Signature:** When a signature is needed, the client authenticates and submits their PSBT without signing it first. The platform records the submission time and calculates the `unlocksAt` date based on the provider's specified delay forementioned in the purchase details.
 7.  **Receive Signed PSBT:** After the time delay has passed, the signed PSBT is made available to the client.
 8.  **Backup Credentials:** Clients will have access to a secure settings page where, after re-authenticating with 2FA, they can view their credentials and export them to a local file, with strong recommendations to use a password manager.
@@ -49,7 +50,7 @@ Our core mission is to facilitate a connection by verifying one thing and one th
     - Fees: Initial backup, per-signature, and an optional monthly subscription fee.
     - A **BOLT12 Offer** (`lno...`) for receiving payments.
 3.  **Prove Control:** To be listed, the provider must sign a message with the private key corresponding to the `xpub` they provided. Our backend verifies this signature.
-4.  **Handle Requests:** When a user requests a signature, the provider receives a notification. They must upload the signed PSBT before the signing window expires to avoid a penalty.
+4.  **Handle Requests:** When a client requests a signature, the provider receives a notification. They must upload the signed PSBT before the signing window expires to avoid a penalty.
 
 ---
 
@@ -60,7 +61,7 @@ To mitigate wrench attacks and provide a transparent measure of provider reliabi
 - **Provider-Set Delays:** Providers must set a minimum time-delay (in days) for returning a signed PSBT. This helps protect their clients from being coerced into signing under duress.
 - **Signing Window:** Once a signature is requested and the time-delay period begins, the provider has a fixed window (e.g., time-delay + 7 days) to upload the signed PSBT.
 - **Penalties:** If a provider fails to upload the signed PSBT within this window, their public `penaltyCount` is incremented.
-- **Objective Sorting:** This `penaltyCount` serves as a crucial, non-gameable metric. While Seed-E remains neutral and defaults to a random sort, users can choose to sort providers by "Fewest Penalties," placing the most reliable and responsive providers at the top, while clients can create a new username, this is recorded and the person can still damage the providers reputation socially.
+- **Objective Sorting:** This `penaltyCount` serves as a crucial, non-gameable metric. While Seed-E remains neutral and defaults to a random sort, clientss can choose to sort providers by "Fewest Penalties," placing the most reliable and responsive providers at the top, while clients can create a new username, this is recorded and the person can still damage the providers reputation socially.
 
 ## Subscription & Dunning Lifecycle
 
