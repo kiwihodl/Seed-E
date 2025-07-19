@@ -9,6 +9,13 @@ alwaysApply: false
 **DO NOT USE TAILWIND CSS v4** - It causes dark mode issues and conflicts with theme management. 
 **MUST USE TAILWIND CSS v3** for proper dark mode functionality.
 
+## CRITICAL: SERVER MANAGEMENT
+**ALWAYS CHECK FOR EXISTING SERVER FIRST** - Before running `npm run dev` or starting any server, check if one is already running:
+- Use `ps aux | grep "next dev"` to check for existing server
+- Use `curl -I http://localhost:3000` to test if server is responding
+- Only start new server if none exists or current one is not responding
+- User already has terminal running - don't start new servers unnecessarily
+
 ## Summary
 Seed-E is a Bitcoin multisig service platform that connects clients and providers for signing and backup services. The application is now fully functional with persistent light/dark mode support, comprehensive error handling, and all core features implemented.
 

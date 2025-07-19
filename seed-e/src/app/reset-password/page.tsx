@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Button from "@/components/Button";
@@ -18,7 +18,47 @@ export default function ResetPasswordPage() {
   const [newMasterKey, setNewMasterKey] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [passwordMatch, setPasswordMatch] = useState<boolean | null>(null);
+  const [passwordStrength, setPasswordStrength] = useState<{
+    hasLength: boolean;
+    hasUppercase: boolean;
+    hasLowercase: boolean;
+    hasNumber: boolean;
+    hasSpecial: boolean;
+  }>({
+    hasLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecial: false,
+  });
+  const [twoFactorSecret, setTwoFactorSecret] = useState("");
   const router = useRouter();
+
+  // Password validation function
+  const validatePassword = useCallback((password: string) => {
+    return {
+      hasLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+    };
+  }, []);
+
+  // Check password match whenever passwords change
+  useEffect(() => {
+    if (confirmPassword) {
+      setPasswordMatch(newPassword === confirmPassword);
+    } else {
+      setPasswordMatch(null);
+    }
+  }, [newPassword, confirmPassword]);
+
+  // Check password strength whenever newPassword changes
+  useEffect(() => {
+    setPasswordStrength(validatePassword(newPassword));
+  }, [newPassword, validatePassword]);
 
   useEffect(() => {
     // Check if user has temp password (indicating they came from forgot password)
@@ -32,6 +72,14 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+
+    // Check password strength
+    const isPasswordStrong = Object.values(passwordStrength).every(Boolean);
+    if (!isPasswordStrong) {
+      setError("Password does not meet all requirements");
+      setIsLoading(false);
+      return;
+    }
 
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match");
@@ -91,6 +139,7 @@ export default function ResetPasswordPage() {
 
       if (response.ok) {
         setQrCodeDataURL(data.qrCodeDataURL);
+        setTwoFactorSecret(data.secret); // Store the secret
         setStep("2fa-setup");
       } else {
         setError(data.error || "Failed to generate 2FA setup");
@@ -115,6 +164,7 @@ export default function ResetPasswordPage() {
           username: localStorage.getItem("username"),
           userType: "provider",
           token: twoFactorToken,
+          secret: twoFactorSecret, // Pass the secret
         }),
       });
 
@@ -259,6 +309,94 @@ export default function ResetPasswordPage() {
                     )}
                   </button>
                 </div>
+
+                {/* Password strength indicators */}
+                {newPassword && (
+                  <div className="mt-2 space-y-1">
+                    <div className="space-y-1">
+                      {!passwordStrength.hasLength && (
+                        <div className="flex items-center text-xs text-red-600 dark:text-red-400">
+                          <svg
+                            className="w-3 h-3 mr-1 text-red-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          At least 8 characters
+                        </div>
+                      )}
+                      {!passwordStrength.hasUppercase && (
+                        <div className="flex items-center text-xs text-red-600 dark:text-red-400">
+                          <svg
+                            className="w-3 h-3 mr-1 text-red-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          One uppercase letter
+                        </div>
+                      )}
+                      {!passwordStrength.hasLowercase && (
+                        <div className="flex items-center text-xs text-red-600 dark:text-red-400">
+                          <svg
+                            className="w-3 h-3 mr-1 text-red-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          One lowercase letter
+                        </div>
+                      )}
+                      {!passwordStrength.hasNumber && (
+                        <div className="flex items-center text-xs text-red-600 dark:text-red-400">
+                          <svg
+                            className="w-3 h-3 mr-1 text-red-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          One number
+                        </div>
+                      )}
+                      {!passwordStrength.hasSpecial && (
+                        <div className="flex items-center text-xs text-red-600 dark:text-red-400">
+                          <svg
+                            className="w-3 h-3 mr-1 text-red-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          One special character
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -316,6 +454,49 @@ export default function ResetPasswordPage() {
                     )}
                   </button>
                 </div>
+
+                {/* Password match indicator */}
+                {confirmPassword && passwordMatch !== null && (
+                  <div
+                    className={`mt-2 text-xs ${
+                      passwordMatch
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {passwordMatch ? (
+                      <div className="flex items-center">
+                        <svg
+                          className="w-3 h-3 mr-1 text-green-500"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        Passwords match
+                      </div>
+                    ) : (
+                      <div className="flex items-center">
+                        <svg
+                          className="w-3 h-3 mr-1 text-red-500"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        Passwords do not match
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -331,7 +512,13 @@ export default function ResetPasswordPage() {
               size="md"
               fullWidth
               loading={isLoading}
-              disabled={isLoading}
+              disabled={
+                isLoading ||
+                !newPassword ||
+                !confirmPassword ||
+                !passwordMatch ||
+                !Object.values(passwordStrength).every(Boolean)
+              }
             >
               Set New Password
             </Button>
