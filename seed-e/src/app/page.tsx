@@ -2,25 +2,16 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">Seed-E</h1>
-              <span className="ml-2 text-sm text-gray-500">
-                Bitcoin Signing Services
-              </span>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Seed-E
+              </h1>
             </div>
-            <nav className="flex space-x-8">
-              <Link
-                href="/login"
-                className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Login
-              </Link>
-            </nav>
           </div>
         </div>
       </header>
@@ -28,13 +19,13 @@ export default function Home() {
       {/* Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">
-          <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+          <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white sm:text-5xl md:text-6xl">
             <span className="block">Neutral, Non-Custodial</span>
-            <span className="block text-blue-600">
+            <span className="block text-blue-600 dark:text-blue-400">
               Bitcoin Signing Services
             </span>
           </h2>
-          <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+          <p className="mt-3 max-w-md mx-auto text-base text-gray-600 dark:text-gray-300 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
             A directory for third-party Bitcoin signing services, designed to be
             integrated directly into wallets. Find trustworthy providers and
             manage your multisig setup securely.
@@ -42,8 +33,8 @@ export default function Home() {
           <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
             <div className="rounded-md shadow">
               <Link
-                href="/"
-                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10"
+                href="/register"
+                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10 transition-colors"
               >
                 Register as Provider
               </Link>
@@ -51,7 +42,7 @@ export default function Home() {
             <div className="mt-3 rounded-md shadow sm:mt-0 sm:ml-3">
               <Link
                 href="/login"
-                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10"
+                className="w-full flex items-center justify-center px-8 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 md:py-4 md:text-lg md:px-10 transition-colors"
               >
                 Sign In
               </Link>
@@ -62,7 +53,7 @@ export default function Home() {
         {/* Features Section */}
         <div className="mt-16">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="px-4 py-5 sm:p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -83,10 +74,10 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="ml-4">
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                       Non-Custodial
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       We never touch your funds. All payments are peer-to-peer
                       over Lightning.
                     </p>
@@ -95,7 +86,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="px-4 py-5 sm:p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -116,10 +107,10 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="ml-4">
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                       2FA Security
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       Mandatory Time-based One-Time Password (TOTP) for all
                       accounts.
                     </p>
@@ -128,7 +119,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="px-4 py-5 sm:p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -149,10 +140,10 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="ml-4">
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                       Lightning Payments
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       Instant, low-fee payments via Lightning Network
                       integration.
                     </p>
@@ -165,15 +156,15 @@ export default function Home() {
 
         {/* How It Works */}
         <div className="mt-16">
-          <h3 className="text-2xl font-bold text-gray-900 text-center mb-8">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-8">
             How It Works
           </h3>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 For Providers
               </h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <li>Register with username, password, and 2FA</li>
                 <li>Create service listings with your xpub</li>
                 <li>Prove key control with cryptographic signature</li>
@@ -181,11 +172,11 @@ export default function Home() {
                 <li>Receive Lightning payments directly</li>
               </ol>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                 For Clients
               </h4>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300">
                 <li>Browse randomized provider listings</li>
                 <li>Filter by policy type, fees, and reliability</li>
                 <li>Pay initial backup fee via Lightning</li>
@@ -198,10 +189,10 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-800">
+      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-base text-gray-400">
+            <p className="text-base text-gray-600 dark:text-gray-400">
               Seed-E - Neutral, non-custodial Bitcoin signing services directory
             </p>
           </div>
