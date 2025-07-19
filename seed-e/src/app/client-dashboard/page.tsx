@@ -8,12 +8,29 @@ interface Service {
   id: string;
   providerName: string;
   policyType: string;
-  xpub: string;
+  xpubHash: string;
   initialBackupFee: number;
   perSignatureFee: number;
   monthlyFee?: number;
   minTimeDelay: number;
   createdAt: string;
+  isPurchased: boolean;
+}
+
+interface PurchasedService {
+  id: string;
+  serviceId: string;
+  providerName: string;
+  policyType: string;
+  xpubHash: string;
+  initialBackupFee: number;
+  perSignatureFee: number;
+  monthlyFee?: number;
+  minTimeDelay: number;
+  purchasedAt: string;
+  expiresAt?: string;
+  isActive: boolean;
+  paymentHash?: string;
 }
 
 interface SignatureRequest {
@@ -28,7 +45,10 @@ interface SignatureRequest {
 }
 
 export default function ClientDashboard() {
-  const [services, setServices] = useState<Service[]>([]);
+  const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const [purchasedServices, setPurchasedServices] = useState<
+    PurchasedService[]
+  >([]);
   const [requests, setRequests] = useState<SignatureRequest[]>([]);
   const [loading, setLoading] = useState(true);
   // const [error, setError] = useState("");
@@ -70,7 +90,8 @@ export default function ClientDashboard() {
     setIsDark(currentTheme);
 
     // Load services and requests
-    fetchServices();
+    fetchAvailableServices();
+    fetchPurchasedServices();
     fetchRequests();
   }, []);
 
@@ -91,20 +112,48 @@ export default function ClientDashboard() {
     };
   }, [showSettings]);
 
-  const fetchServices = async () => {
+  const fetchAvailableServices = async () => {
     try {
       const response = await fetch("/api/services");
 
       if (response.ok) {
         const data = await response.json();
-        setServices(data.services);
+        setAvailableServices(data.services);
       } else {
-        console.error("Failed to fetch services");
+        console.error("Failed to fetch available services");
       }
     } catch {
-      console.error("Network error fetching services");
+      console.error("Network error fetching available services");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPurchasedServices = async () => {
+    try {
+      const clientId = localStorage.getItem("userId");
+      console.log("🔍 Fetching purchased services for client ID:", clientId);
+
+      if (!clientId) {
+        console.log("❌ No client ID found in localStorage");
+        return;
+      }
+
+      const response = await fetch(
+        `/api/clients/purchased-services?clientId=${clientId}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Purchased services data:", data);
+        setPurchasedServices(data.purchasedServices);
+      } else {
+        console.error("Failed to fetch purchased services");
+        const errorData = await response.json();
+        console.error("Error details:", errorData);
+      }
+    } catch (error) {
+      console.error("Network error fetching purchased services:", error);
     }
   };
 
@@ -127,11 +176,62 @@ export default function ClientDashboard() {
     // Clear any stored authentication data
     localStorage.removeItem("username");
     localStorage.removeItem("userType");
+    localStorage.removeItem("userId");
     localStorage.removeItem("tempPassword");
     sessionStorage.clear();
 
     // Redirect to home page
     router.push("/");
+  };
+
+  const handlePurchaseService = async (service: Service) => {
+    try {
+      // Get client ID from localStorage or session
+      const clientId = localStorage.getItem("userId");
+      console.log("🛒 Attempting purchase with client ID:", clientId);
+
+      if (!clientId) {
+        alert("Please log in to purchase services");
+        return;
+      }
+
+      const response = await fetch("/api/services/purchase", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          serviceId: service.id,
+          clientId: clientId,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Purchase initiated:", data);
+
+        // TODO: Show payment modal with Lightning invoice
+        alert(
+          `Purchase initiated for ${service.providerName}! Lightning invoice: ${data.purchase.invoice.paymentRequest}`
+        );
+
+        // Refresh the services lists
+        fetchAvailableServices();
+        fetchPurchasedServices();
+
+        // Future implementation:
+        // 1. Show payment modal with QR code
+        // 2. Poll for payment confirmation
+        // 3. Activate service after payment
+      } else {
+        const error = await response.json();
+        console.error("❌ Purchase failed:", error);
+        alert(`Purchase failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Purchase error:", error);
+      alert("Failed to initiate purchase. Please try again.");
+    }
   };
 
   const getInitials = (name: string) => {
@@ -319,11 +419,11 @@ export default function ClientDashboard() {
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                Available Services ({services.length})
+                Available Services ({availableServices.length})
               </h2>
             </div>
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {services.length === 0 ? (
+              {availableServices.length === 0 ? (
                 <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                   <svg
                     className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
@@ -341,7 +441,7 @@ export default function ClientDashboard() {
                   <p className="mt-2">No services available</p>
                 </div>
               ) : (
-                services.map((service) => (
+                availableServices.map((service) => (
                   <div
                     key={service.id}
                     className="px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -378,6 +478,15 @@ export default function ClientDashboard() {
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           Added: {formatDate(service.createdAt)}
                         </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePurchaseService(service);
+                          }}
+                          className="mt-2 px-3 py-1 bg-[#FF9500] text-black text-xs font-medium rounded hover:bg-[#FF9500]/90 transition-colors"
+                        >
+                          Purchase
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -386,15 +495,15 @@ export default function ClientDashboard() {
             </div>
           </div>
 
-          {/* Signature Requests */}
+          {/* Purchased Services */}
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                Your Signature Requests ({requests.length})
+                Your Purchased Services ({purchasedServices.length})
               </h2>
             </div>
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {requests.length === 0 ? (
+              {purchasedServices.length === 0 ? (
                 <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                   <svg
                     className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
@@ -409,36 +518,41 @@ export default function ClientDashboard() {
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                  <p className="mt-2">No signature requests</p>
+                  <p className="mt-2">No purchased services</p>
                 </div>
               ) : (
-                requests.map((request) => (
-                  <div key={request.id} className="px-6 py-4">
+                purchasedServices.map((service) => (
+                  <div key={service.id} className="px-6 py-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {request.serviceName}
+                          {service.providerName}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Fee: {formatNumberWithCommas(request.fee)} sats
+                          Policy: {service.policyType}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Created: {formatDate(request.createdAt)}
+                          Per Signature:{" "}
+                          {formatNumberWithCommas(service.perSignatureFee)} sats
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Expires: {formatDate(request.expiresAt)}
+                          Purchased: {formatDate(service.purchasedAt)}
                         </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Penalty Date: {formatDate(request.penaltyDate)}
-                        </p>
+                        {service.expiresAt && (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Expires: {formatDate(service.expiresAt)}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                            request.status
-                          )}`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            service.isActive
+                              ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+                              : "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
+                          }`}
                         >
-                          {request.status}
+                          {service.isActive ? "Active" : "Pending Payment"}
                         </span>
                       </div>
                     </div>
@@ -446,6 +560,68 @@ export default function ClientDashboard() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Signature Requests */}
+        <div className="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+              Your Signature Requests ({requests.length})
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {requests.length === 0 ? (
+              <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                <svg
+                  className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <p className="mt-2">No signature requests</p>
+              </div>
+            ) : (
+              requests.map((request) => (
+                <div key={request.id} className="px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {request.serviceName}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Fee: {formatNumberWithCommas(request.fee)} sats
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Created: {formatDate(request.createdAt)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Expires: {formatDate(request.expiresAt)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Penalty Date: {formatDate(request.penaltyDate)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                          request.status
+                        )}`}
+                      >
+                        {request.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -577,14 +753,18 @@ export default function ClientDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Extended Public Key (xpub)
+                    Extended Public Key Hash (for security)
                   </label>
                   <textarea
-                    value={selectedService.xpub}
+                    value={selectedService.xpubHash}
                     readOnly
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    The actual xpub is hashed for security. Only the hash is
+                    stored in the database.
+                  </p>
                 </div>
               </div>
 
@@ -601,8 +781,9 @@ export default function ClientDashboard() {
                 </Button>
                 <Button
                   onClick={() => {
-                    // TODO: Implement purchase flow
-                    console.log("Purchase service:", selectedService.id);
+                    handlePurchaseService(selectedService);
+                    setShowServiceModal(false);
+                    setSelectedService(null);
                   }}
                   variant="primary"
                   size="md"

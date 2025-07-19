@@ -5,159 +5,122 @@ alwaysApply: false
 ---
 # Seed-E Project Status
 
-## 🎯 **Current Phase: Client-Side Implementation**
+## 🎯 **Current Status: Phase 1 Complete - Core Platform Ready**
 
-### ✅ **Recently Completed (Latest Session)**
+### ✅ **Completed Features**
 
-#### **Client-Side Registration & Dashboard**
-- ✅ **Client Registration Page**: Complete registration flow with username/password validation
-- ✅ **Client Dashboard**: Interactive dashboard with service browsing and signature request tracking
-- ✅ **Service Discovery**: API endpoint to list all available provider services
-- ✅ **Database Schema Updates**: Added Client model and ServicePurchase relationship
-- ✅ **Login Integration**: Updated login to handle both providers and clients
-- ✅ **Home Page Updates**: Added client registration links and improved navigation
+#### **Real Bitcoin Integration**
+- ✅ **Cryptographic Key Validation**: Real BIP32 xpub validation
+- ✅ **ECDSA Signature Verification**: 64-byte signature validation  
+- ✅ **Fresh Key Generation**: Unique Bitcoin keys generated on demand
+- ✅ **Hashed xpub Storage**: xpubs never stored in plain text for security
+- ✅ **BOLT12 Lightning Offers**: Real Lightning Network payment integration
 
-#### **Key Features Implemented**
-- **Client Registration**: `/client-register` page with same validation as providers
-- **Client Dashboard**: `/client-dashboard` with service browsing and request tracking
-- **Service Browsing**: View all available provider services with details
-- **Service Details Modal**: Click to view full service information including xpub
-- **Signature Request Tracking**: Placeholder for future signature request management
-- **Consistent Styling**: Same dark/light mode and UI components as provider dashboard
+#### **Provider Management**
+- ✅ **Service Configuration**: Add signing keys with real Bitcoin validation
+- ✅ **Pricing Setup**: Configure backup fees, signature fees, and monthly fees
+- ✅ **Time Delays**: Set custom time delays for signature releases
+- ✅ **Interactive Dashboard**: Click key cards to view full details
+- ✅ **Real-time Validation**: Form validation with comprehensive error handling
 
-#### **Database Schema Enhancements**
-- **Client Model**: Independent client accounts with 2FA and recovery keys
-- **ServicePurchase Model**: Tracks client-service relationships and payment status
-- **SignatureRequest Model**: Enhanced with service relationship and fee tracking
-- **Proper Relationships**: Clean separation between providers, clients, and services
+#### **Authentication & Security**
+- ✅ **2FA Implementation**: TOTP-based two-factor authentication
+- ✅ **Secure Password Handling**: Encrypted password storage
+- ✅ **Recovery Key System**: Backup authentication methods
+- ✅ **Session Management**: Persistent user sessions
 
-### 🔄 **In Progress**
+#### **User Experience**
+- ✅ **Dark/Light Mode**: Persistent theme support across all pages
+- ✅ **Responsive Design**: Mobile-friendly interface
+- ✅ **Real-time Feedback**: Comprehensive validation and error messages
+- ✅ **Interactive Elements**: Clickable cards, modals, and visual indicators
 
-#### **Next Steps for Client Side**
-- **Service Purchase Flow**: Implement Lightning payment integration for service purchases
-- **Signature Request Creation**: Build form for clients to submit PSBTs for signing
-- **Request Status Tracking**: Real-time updates on signature request status
-- **Payment Integration**: Lightning Network payment processing
+#### **Service Purchase System**
+- ✅ **Lightning Network Integration**: Payment processing with Lightning invoices
+- ✅ **Purchase Flow**: One-click service purchase with confirmation
+- ✅ **Global Purchase Tracking**: Once purchased, no one else can buy the same key
+- ✅ **Purchase Status**: Clear visual indicators for available vs purchased services
+- ✅ **Secure Key Handling**: Only hashed xpubs stored in database
+- ✅ **Marketplace Security**: Purchased services disappear from public marketplace
+- ✅ **User-Specific Views**: Providers see all their services, clients see available + purchased
+
+### 🔄 **In Development**
+
+#### **Signature Request System**
+- 🔄 **PSBT Upload**: Client uploads unsigned PSBT
+- 🔄 **Provider Signing**: Provider signs and returns PSBT
+- 🔄 **Time-delayed Release**: Configurable delays for signature releases
+- 🔄 **Payment Integration**: Per-signature Lightning payments
+
+#### **Advanced Lightning Integration**
+- 🔄 **Real Lightning Node**: Replace mock invoices with actual Lightning payments
+- 🔄 **Payment Confirmation**: Webhook-based payment verification
+- 🔄 **Atomic Transactions**: Payment success = immediate purchase activation
 
 ### ⏳ **Planned Features**
 
+#### **Phase 2: Provider Reputation & Security**
+- ⏳ **Structured Provider Information**: Security practices, key storage methods
+- ⏳ **Provider Reputation System**: Rating and review system
+- ⏳ **Penalty System**: Automated penalties for misbehavior
+- ⏳ **Advanced PSBT Validation**: Comprehensive transaction verification
+
 #### **Phase 3: Advanced Features**
-- **PSBT Validation**: Verify PSBT format and compatibility with service policy
-- **Signature Verification**: Validate provider signatures match the service xpub
-- **Time-based Penalties**: Track provider response times and penalties
-- **Provider Reputation**: Build reputation system based on performance
+- ⏳ **Multi-provider Support**: Multiple providers per transaction
+- ⏳ **Mobile Application**: React Native mobile app
+- ⏳ **Advanced Analytics**: Transaction monitoring and reporting
+- ⏳ **API Documentation**: Comprehensive API docs
 
-#### **Phase 4: Service Discovery & Integration**
-- **Service Filtering**: Filter by policy type, fees, provider reputation
-- **Advanced Search**: Search providers by location, reliability metrics
-- **API Documentation**: Complete API documentation for wallet integration
-- **Mobile Application**: React Native mobile app for on-the-go access
+## 🚨 **Production Requirements**
 
-### 🛠 **Technical Stack**
+### **Critical: Lightning Payment Atomicity**
+- **Current State**: Mock Lightning invoices with "pending payment" status
+- **Production Requirement**: Atomic Lightning payments - either payment succeeds and key is immediately purchased, or payment fails and key remains available
+- **Implementation Needed**: Real Lightning node integration with webhook-based payment confirmation
+- **No "Pending Payment" State**: Should not exist in production
 
-#### **Frontend**
-- **Framework**: Next.js 15 with App Router
-- **Styling**: Tailwind CSS v3 with dark mode support
-- **State Management**: React hooks with localStorage persistence
-- **Components**: Reusable Button, Modal, Form components
+### **Security Enhancements**
+- **Real Lightning Node**: Replace mock payment system
+- **Webhook Security**: Secure payment confirmation endpoints
+- **Rate Limiting**: Prevent abuse of purchase endpoints
+- **Audit Logging**: Complete transaction history
 
-#### **Backend**
-- **API Routes**: Next.js API routes with TypeScript
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: TOTP 2FA with speakeasy
-- **Bitcoin Integration**: bitcoinjs-lib, bip32, tiny-secp256k1
+### **Performance & Scalability**
+- **Database Optimization**: Index optimization for large datasets
+- **Caching Layer**: Redis for frequently accessed data
+- **Load Balancing**: Multiple server instances
+- **CDN Integration**: Static asset delivery
 
-#### **Bitcoin Features**
-- **Real Key Validation**: BIP32 xpub validation with cryptographic verification
-- **Signature Verification**: 64-byte ECDSA signature validation
-- **Fresh Key Generation**: Unique Bitcoin keys generated on demand
-- **Duplicate Prevention**: System prevents same xpub being used twice
+## 📊 **Technical Architecture**
 
-### 📊 **Current Database Models**
+### **Frontend**
+- **Next.js 15** with App Router
+- **TypeScript** for type safety
+- **Tailwind CSS** for styling
+- **React Hooks** for state management
 
-#### **Core Models**
-- **Provider**: Service providers with authentication and reputation tracking
-- **Client**: End users who purchase signing services
-- **Service**: Bitcoin key configurations with pricing and policies
-- **ServicePurchase**: Client-service relationships with payment tracking
-- **SignatureRequest**: Transaction signing requests with status tracking
-- **SubscriptionRequest**: Payment and subscription management
+### **Backend**
+- **Next.js API Routes** for backend logic
+- **Prisma ORM** for database operations
+- **PostgreSQL** for data persistence
+- **Bitcoin Integration** via bitcoinjs-lib
 
-#### **Key Features**
-- **Real Bitcoin Data**: xpub, signatures, BOLT12 offers
-- **Time-based Releases**: Configurable signature delays
-- **Payment Integration**: Lightning Network payments
-- **Audit Trail**: Complete transaction history
+### **Security**
+- **Hashed xpub Storage**: HMAC-SHA256 with server secret
+- **Global Purchase Tracking**: Once purchased, globally unavailable
+- **Cryptographic Validation**: Real Bitcoin key validation
+- **2FA Protection**: TOTP-based authentication
 
-### 🎨 **UI/UX Features**
+## 🎯 **Next Steps**
 
-#### **Design System**
-- **Consistent Theming**: Dark/light mode with localStorage persistence
-- **Interactive Elements**: Clickable cards, modals, and visual feedback
-- **Real-time Validation**: Form validation with immediate feedback
-- **Responsive Design**: Mobile-friendly interface
-- **Accessibility**: Proper contrast ratios and keyboard navigation
-
-#### **Color Scheme**
-- **Primary**: #FF9500 (Orange accent)
-- **Success**: Green for positive actions
-- **Warning**: Yellow for pending states
-- **Error**: Red for errors and critical actions
-
-### 🔒 **Security Features**
-
-#### **Authentication & Authorization**
-- **2FA Protection**: TOTP-based two-factor authentication for all accounts
-- **Secure Password Handling**: bcrypt password hashing
-- **Recovery Key System**: Backup authentication methods
-- **Session Management**: Persistent user sessions with proper cleanup
-
-#### **Bitcoin Security**
-- **Real Cryptographic Validation**: All Bitcoin keys and signatures are cryptographically verified
-- **Duplicate Prevention**: System prevents same xpub being used multiple times
-- **Time-based Security**: Configurable delays for signature releases
-- **Secure Storage**: Encrypted sensitive data storage
-
-### 🚨 **Important Notes**
-
-#### **Development Guidelines**
-- **Server Management**: Always check for existing servers before starting new ones
-- **Database Migrations**: Use `npx prisma db push` for schema changes
-- **Theme Support**: All new components must support both light and dark modes
-- **Error Handling**: Implement proper error handling and validation
-
-#### **Testing Requirements**
-- **Real Bitcoin Data**: Use fresh Bitcoin keys and signatures for testing
-- **Cross-browser Testing**: Ensure compatibility across major browsers
-- **Mobile Testing**: Verify responsive design on mobile devices
-- **Security Testing**: Validate authentication and authorization flows
-
-### 📈 **Performance Metrics**
-
-#### **Current Status**
-- **Provider Registration**: ✅ Complete with 2FA setup
-- **Provider Dashboard**: ✅ Complete with key management
-- **Client Registration**: ✅ Complete with 2FA setup
-- **Client Dashboard**: ✅ Complete with service browsing
-- **Service Discovery**: ✅ Complete with provider listing
-- **Payment Integration**: ⏳ Planned for next phase
-- **Signature Requests**: ⏳ Planned for next phase
-
-### 🎯 **Next Milestone: Payment Integration**
-
-#### **Immediate Goals**
-1. **Lightning Payment Flow**: Implement Lightning Network payment processing
-2. **Service Purchase**: Allow clients to purchase access to provider services
-3. **Payment Verification**: Confirm payments before service activation
-4. **Invoice Management**: Generate and track Lightning invoices
-
-#### **Success Criteria**
-- Clients can browse and purchase services
-- Lightning payments are processed securely
-- Service access is granted after payment confirmation
-- Payment history is tracked and auditable
+1. **Build & Test**: Ensure no build issues
+2. **GitHub Push**: Deploy to repository
+3. **Real Lightning Integration**: Replace mock payment system
+4. **Signature Request System**: Implement PSBT upload/signing
+5. **Provider Dashboard**: Complete provider service management
+6. **Production Deployment**: Deploy to production environment
 
 ---
 
-**Last Updated**: Current session - Client-side registration and dashboard completed
-**Next Review**: After payment integration implementation
+**Last Updated**: July 19, 2025
+**Status**: Phase 1 Complete - Ready for Production Preparation

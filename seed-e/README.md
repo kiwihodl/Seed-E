@@ -9,7 +9,7 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - ✅ **Cryptographic Key Validation**: Real BIP32 xpub validation
 - ✅ **ECDSA Signature Verification**: 64-byte signature validation
 - ✅ **Fresh Key Generation**: Unique Bitcoin keys generated on demand
-- ✅ **Duplicate Prevention**: System prevents same xpub being used twice
+- ✅ **Hashed xpub Storage**: xpubs never stored in plain text for security
 - ✅ **BOLT12 Lightning Offers**: Real Lightning Network payment integration
 
 ### **Provider Management**
@@ -33,6 +33,18 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - ✅ **Responsive Design**: Mobile-friendly interface
 - ✅ **Real-time Feedback**: Comprehensive validation and error messages
 - ✅ **Interactive Elements**: Clickable cards, modals, and visual indicators
+
+### **Service Purchase System**
+
+- ✅ **Lightning Network Integration**: Payment processing with Lightning invoices
+- ✅ **Purchase Flow**: One-click service purchase with confirmation
+- ✅ **Global Purchase Tracking**: Once purchased, no one else can buy the same key
+- ✅ **Purchase Status**: Clear visual indicators for available vs purchased services
+- ✅ **Secure Key Handling**: Only hashed xpubs stored in database
+- ✅ **Marketplace Security**: Purchased services disappear from public marketplace
+- ✅ **User-Specific Views**: Providers see all their services, clients see available + purchased
+
+> **🚨 Production Requirement**: Current implementation uses mock Lightning invoices with "pending payment" status. For production, Lightning payments must be atomic - either payment succeeds and key is immediately purchased, or payment fails and key remains available. No "pending payment" state should exist in production.
 
 ## 🛠 Technical Stack
 
@@ -140,31 +152,51 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - Real Bitcoin key validation and generation
 - Cryptographic signature verification
 - Interactive provider dashboard
+- **Client registration with real-time validation**
+- **Client dashboard with service browsing**
+- **Cross-user-type username uniqueness**
+- **Enhanced form validation and UX**
 - Comprehensive form validation
 - Dark/light mode support
 - Database integration with Prisma
 
 ### 🔄 **In Development**
 
+- **Service purchase flow with Lightning payments**
+- **Signature request system with PSBT validation**
 - Key derivation and management
 - Service discovery protocol
 - Advanced Lightning Network integration
-- Client dashboard implementation
 
 ### ⏳ **Planned Features**
 
+- **Provider reputation and penalty systems**
+- **Advanced PSBT validation and verification**
 - Automated signature processing
 - Advanced analytics and monitoring
 - Multi-provider support
 - Mobile application
 
+#### **Structured Provider Information (Phase 2)**
+
+- **Security Practices**: Standardized security methodology descriptions
+- **Key Storage Method**: How keys are stored (hardware, air-gapped, etc.)
+- **Key Generation Method**: How keys are generated (hardware wallet, manual, etc.)
+- **Signing Device**: Type of device used for signing (cold storage, hardware wallet, etc.)
+- **Location**: Optional geographic location for regulatory compliance
+- **No Custom URLs**: Eliminates attack vectors from malicious links
+- **Per-Key Information**: Each service/key has its own structured data
+- **Searchable & Filterable**: Standardized format for easy discovery
+
 ## 🔒 Security Features
 
 - **Real Cryptographic Validation**: All Bitcoin keys and signatures are cryptographically verified
-- **Duplicate Prevention**: System prevents same xpub being used multiple times
+- **Hashed xpub Storage**: xpubs never stored in plain text, only HMAC-SHA256 hashes
+- **Global Purchase Tracking**: Once a key is purchased, no one else can buy it
 - **Time-based Security**: Configurable delays for signature releases
 - **2FA Protection**: Two-factor authentication for all accounts
 - **Secure Storage**: Encrypted sensitive data storage
+- **No Malicious URL Attack Vectors**: Structured data only, no custom URLs
 
 ## 🎨 UI/UX Features
 

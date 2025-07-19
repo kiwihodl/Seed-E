@@ -56,9 +56,10 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store username and userType in localStorage
+        // Store username, userType, and user ID in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("userType", userType);
+        localStorage.setItem("userId", data.user.id);
 
         if (data.needs2FASetup) {
           // Generate 2FA setup
@@ -130,9 +131,12 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok && data.verified) {
-        // Store username and userType in localStorage
+        // Store username, userType, and user ID in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("userType", userType);
+        if (data.user?.id) {
+          localStorage.setItem("userId", data.user.id);
+        }
 
         // 2FA verified, redirect to appropriate dashboard
         router.push(
@@ -169,9 +173,12 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok && data.verified) {
-        // Store username and userType in localStorage
+        // Store username, userType, and user ID in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("userType", userType);
+        if (data.user?.id) {
+          localStorage.setItem("userId", data.user.id);
+        }
 
         // 2FA setup successful, redirect to appropriate dashboard
         router.push(

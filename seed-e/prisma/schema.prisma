@@ -57,8 +57,8 @@ model Service {
   // The policy type of the key being offered (e.g., Taproot, SegWit).
   policyType KeyPolicyType
 
-  // The extended public key for this service.
-  xpub String @unique
+  // The hashed extended public key for this service (for security).
+  xpubHash String @unique
 
   // The signature proving the provider controls the xpub.
   controlSignature String
@@ -83,6 +83,9 @@ model Service {
 
   // A flag to show if the service is active and listed.
   isActive Boolean @default(true)
+
+  // A flag to show if the service has been purchased by anyone.
+  isPurchased Boolean @default(false)
 
   // The clients who have purchased this service.
   servicePurchases ServicePurchase[]

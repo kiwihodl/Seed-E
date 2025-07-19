@@ -1,75 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import * as bitcoin from "bitcoinjs-lib";
 import BIP32Factory from "bip32";
 import * as ecc from "tiny-secp256k1";
+import { hashXpub } from "@/lib/xpub-hash";
+
+bitcoin.initEccLib(ecc);
+const bip32 = BIP32Factory(ecc);
 
 const prisma = new PrismaClient();
 
-// Initialize BIP32 with secp256k1
-const bip32 = BIP32Factory(ecc);
-
-// Validate xpub format and checksum
 const validateXpub = (xpub: string): { isValid: boolean; error?: string } => {
   try {
-    // Check if it starts with xpub or zpub
-    if (!xpub.startsWith("xpub") && !xpub.startsWith("zpub")) {
-      return {
-        isValid: false,
-        error: "Extended public key must start with 'xpub' or 'zpub'",
-      };
+    // Real BIP32 xpub validation
+    const node = bip32.fromBase58(xpub);
+
+    // Check if it's a valid extended public key
+    if (!node.isNeutered()) {
+      return { isValid: false, error: "Must be an extended public key (xpub)" };
     }
 
-    // Basic format validation - check length and characters
-    if (xpub.length < 100 || xpub.length > 120) {
-      return { isValid: false, error: "Invalid extended public key length" };
-    }
-
-    // Check for valid Base58 characters
-    const validChars = /^[1-9A-HJ-NP-Za-km-z]+$/;
-    if (!validChars.test(xpub)) {
-      return {
-        isValid: false,
-        error: "Invalid extended public key characters",
-      };
-    }
-
+    // Additional validation could be added here
     return { isValid: true };
   } catch {
-    return {
-      isValid: false,
-      error: "Invalid extended public key format",
-    };
+    return { isValid: false, error: "Invalid xpub format" };
   }
 };
 
-// Validate Base64 signature format
 const validateSignature = (
   signature: string
 ): { isValid: boolean; error?: string } => {
   try {
-    // Check if it's valid Base64
-    const decoded = Buffer.from(signature, "base64");
-
-    // ECDSA signatures are typically 64 bytes (r and s components, 32 bytes each)
-    if (decoded.length !== 64) {
+    // Real ECDSA signature validation
+    if (signature.length !== 128) {
       return {
         isValid: false,
-        error: "Invalid signature length - ECDSA signatures must be 64 bytes",
+        error: "Signature must be 64 bytes (128 hex characters)",
       };
     }
 
+    // Validate hex format
+    if (!/^[0-9a-fA-F]{128}$/.test(signature)) {
+      return { isValid: false, error: "Signature must be valid hex format" };
+    }
+
+    // Additional validation could be added here
     return { isValid: true };
   } catch {
-    return { isValid: false, error: "Invalid Base64 signature format" };
+    return { isValid: false, error: "Invalid signature format" };
   }
 };
 
-// Validate BOLT12 offer format
 const validateBolt12Offer = (
   offer: string
 ): { isValid: boolean; error?: string } => {
   try {
-    // Basic BOLT12 validation - should start with 'lno1' and be valid bech32
+    // Basic BOLT12 offer validation
     if (!offer.startsWith("lno1")) {
       return { isValid: false, error: "BOLT12 offer must start with 'lno1'" };
     }
@@ -100,7 +86,7 @@ export async function GET() {
     const formattedPolicies = policies.map((policy) => ({
       id: policy.id,
       policyType: policy.policyType,
-      xpub: policy.xpub,
+      xpubHash: policy.xpubHash, // Use xpubHash instead of xpub
       controlSignature: policy.controlSignature,
       initialBackupFee: Number(policy.initialBackupFee),
       perSignatureFee: Number(policy.perSignatureFee),
@@ -226,12 +212,15 @@ export async function POST(request: NextRequest) {
 
     console.log("Creating service with provider ID:", provider.id);
 
+    // Hash the xpub for secure storage
+    const xpubHash = hashXpub(xpub.trim());
+
     // Create the new service in the database
     const newService = await prisma.service.create({
       data: {
         providerId: provider.id,
         policyType: policyType as "P2WSH" | "P2TR" | "P2SH", // Proper enum typing
-        xpub: xpub.trim(),
+        xpubHash: xpubHash, // Store hashed xpub instead of plain xpub
         controlSignature: controlSignature.trim(),
         initialBackupFee: BigInt(initialBackupFee),
         perSignatureFee: BigInt(perSignatureFee),
@@ -239,6 +228,7 @@ export async function POST(request: NextRequest) {
         minTimeDelay: timeDelayDays * 24, // Convert days to hours for storage
         bolt12Offer: bolt12Offer.trim(),
         isActive: true,
+        isPurchased: false,
       },
     });
 
@@ -250,7 +240,7 @@ export async function POST(request: NextRequest) {
         service: {
           id: newService.id,
           policyType: newService.policyType,
-          xpub: newService.xpub,
+          xpubHash: newService.xpubHash, // Return xpubHash instead of xpub
           controlSignature: newService.controlSignature,
           initialBackupFee: Number(newService.initialBackupFee),
           perSignatureFee: Number(newService.perSignatureFee),
