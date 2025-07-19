@@ -22,13 +22,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For now, we'll use a mock secret since we don't have session management
-    // In a real implementation, you would retrieve the secret from the database based on the username
-    const mockSecret = "KVEEUQ26MI7H2KCYFJNVALBVLB3WONK6KFBCSLSAFY3GKQTGHZRA"; // This should come from the database
+    // Use the actual secret passed from the frontend
+    if (!secret) {
+      return NextResponse.json(
+        { error: "Secret is required for verification" },
+        { status: 400 }
+      );
+    }
 
-    // Verify the TOTP token
+    // Verify the TOTP token using the actual secret
     const verified = speakeasy.totp.verify({
-      secret: mockSecret,
+      secret: secret,
       encoding: "base32",
       token: token,
       window: 1, // Allow 1 time step in either direction for clock skew
