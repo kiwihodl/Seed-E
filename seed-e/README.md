@@ -46,6 +46,25 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 
 > **🚨 Production Requirement**: Current implementation uses mock Lightning invoices with "pending payment" status. For production, Lightning payments must be atomic - either payment succeeds and key is immediately purchased, or payment fails and key remains available. No "pending payment" state should exist in production.
 
+## 🔒 **Critical Security Information**
+
+### **Hashed xpub Storage**
+
+**No database contains plain text xpubs.** All extended public keys are hashed using HMAC-SHA256 with a server secret before storage. Even if the database is compromised, the actual xpubs remain secure. Only hashed values are stored and transmitted.
+
+### **Master Key Requirements**
+
+**This platform is NOT for users who cannot handle basic key backup.** Both clients and providers must securely backup their master keys. If you cannot properly backup a simple master key, you are in the wrong business and should use an ETF or custodial backup service instead.
+
+**Requirements:**
+
+- **Providers**: Must securely store their signing keys and master keys
+- **Clients**: Must backup their master keys for wallet recovery
+- **No Custodial Service**: This is a non-custodial platform - you control your keys
+- **Self-Service**: Users are responsible for their own key management
+
+**If you cannot meet these basic requirements, this platform is not for you.**
+
 ## 🛠 Technical Stack
 
 - **Frontend**: Next.js 15, TypeScript, Tailwind CSS
@@ -54,6 +73,7 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - **Bitcoin**: bitcoinjs-lib, bip32, tiny-secp256k1
 - **Authentication**: TOTP 2FA with speakeasy
 - **Payments**: Lightning Network (BOLT12)
+- **Security**: HMAC-SHA256 hashing for xpub storage
 
 ## 🚀 Quick Start
 
@@ -62,6 +82,24 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - Node.js 18+
 - Docker and Docker Compose
 - PostgreSQL
+
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
+```bash
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5433/seed-e-db"
+
+# Security (REQUIRED)
+XPUB_HASH_SECRET="your-strong-secret-key-here"
+
+# Optional: Production database
+POSTGRES_PRISMA_URL="your-production-database-url"
+POSTGRES_URL_NON_POOLING="your-production-direct-url"
+```
+
+**⚠️ Critical**: The `XPUB_HASH_SECRET` is required for secure xpub hashing. Never commit this to version control.
 
 ### Installation
 
@@ -83,6 +121,7 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
    ```bash
    cp .env.example .env
    # Edit .env with your database and API keys
+   # REQUIRED: XPUB_HASH_SECRET for secure xpub hashing
    ```
 
 4. **Start the database**
@@ -108,19 +147,143 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
    http://localhost:3000
    ```
 
+## 🧪 Testing
+
+### Manual Testing
+
+Since we removed automated tests to focus on core functionality, testing is done manually:
+
+1. **Client Registration**: Test user registration and validation
+2. **Service Purchase**: Test the complete purchase flow
+3. **Provider Dashboard**: Test service creation and management
+4. **Security**: Verify xpub hashing and purchase tracking
+
+### API Testing
+
+Test the core APIs:
+
+```bash
+# Test services API
+curl -X GET http://localhost:3000/api/services
+
+# Test purchase API (replace with actual IDs)
+curl -X POST http://localhost:3000/api/services/purchase \
+  -H "Content-Type: application/json" \
+  -d '{"serviceId":"service-id","clientId":"client-id"}'
+```
+
+### Security Testing
+
+- Verify xpubs are hashed in database
+- Test purchase tracking prevents duplicate purchases
+- Verify purchased services disappear from marketplace
+
+## 🚀 Deployment
+
+### Development
+
+```bash
+npm run dev
+```
+
+### Production Build
+
+```bash
+npm run build
+npm start
+```
+
+### Docker Deployment
+
+```bash
+# Build Docker image
+docker build -t seed-e .
+
+# Run with environment variables
+docker run -p 3000:3000 \
+  -e DATABASE_URL="your-db-url" \
+  -e XPUB_HASH_SECRET="your-secret" \
+  seed-e
+```
+
+### Environment Setup
+
+1. Set up PostgreSQL database
+2. Configure environment variables
+3. Run database migrations: `npx prisma db push`
+4. Build and start the application
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Build Errors**
+
+- Ensure all dependencies are installed: `npm install`
+- Check TypeScript errors: `npm run build`
+- Verify environment variables are set
+
+**Database Issues**
+
+- Check PostgreSQL is running: `docker-compose ps`
+- Reset database if needed: `npx prisma db push --force-reset`
+- Verify DATABASE_URL in .env
+
+**Purchase Issues**
+
+- Check user is logged in and userId is stored
+- Verify service exists and is not already purchased
+- Check browser console for debugging messages
+
+**Security Issues**
+
+- Ensure XPUB_HASH_SECRET is set
+- Verify xpubs are hashed in database
+- Check purchase tracking is working
+
+### Debugging
+
+**Check Server Status**
+
+```bash
+# Check if server is running
+curl -I http://localhost:3000
+
+# Check running processes
+ps aux | grep "next dev"
+```
+
+**Database Debugging**
+
+```bash
+# Check database connection
+npx prisma db pull
+
+# View database schema
+npx prisma studio
+```
+
+**API Debugging**
+
+```bash
+# Test API endpoints
+curl -X GET http://localhost:3000/api/services
+curl -X GET http://localhost:3000/api/clients/purchased-services?clientId=test
+```
+
 ## 📊 Database Schema
 
 ### Core Models
 
 - **Provider**: Service providers with authentication
 - **Client**: End users requesting signatures
-- **Service**: Bitcoin key configurations and policies
+- **Service**: Bitcoin key configurations and policies (with hashed xpubs)
 - **SignatureRequest**: Transaction signing requests
 - **SubscriptionRequest**: Payment and subscription management
 
 ### Key Features
 
-- **Real Bitcoin Data**: xpub, signatures, BOLT12 offers
+- **Real Bitcoin Data**: xpub hashes, signatures, BOLT12 offers
 - **Time-based Releases**: Configurable signature delays
 - **Payment Integration**: Lightning Network payments
 - **Audit Trail**: Complete transaction history
@@ -140,6 +303,12 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - `POST /api/providers/policies` - Create new service
 - `GET /api/providers/signature-requests` - List pending requests
 - `POST /api/providers/signature-requests` - Submit signed PSBT
+
+### Client Services
+
+- `GET /api/services` - List available services
+- `POST /api/services/purchase` - Purchase a service
+- `GET /api/clients/purchased-services` - List client's purchased services
 
 ### Test Data Generation
 
@@ -220,6 +389,13 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - All new components must support both light and dark modes
 - Follow the established color scheme (#FF9500 orange accent)
 - Implement proper error handling and validation
+
+### Security Requirements
+
+- **XPUB_HASH_SECRET** environment variable must be set
+- Never log or expose xpubs in plain text
+- Use database transactions for purchase operations
+- Validate all inputs before processing
 
 ## 📝 Contributing
 
