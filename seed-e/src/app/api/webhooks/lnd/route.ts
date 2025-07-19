@@ -17,14 +17,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const client = await prisma.client.findUnique({
+    // Find the service purchase by payment hash
+    const servicePurchase = await prisma.servicePurchase.findUnique({
       where: { paymentHash },
+      include: {
+        client: true,
+        service: true,
+      },
     });
 
-    if (!client) {
+    if (!servicePurchase) {
       console.log(`Webhook received for unknown paymentHash: ${paymentHash}`);
       return NextResponse.json(
-        { message: "Client for payment hash not found" },
+        { message: "Service purchase for payment hash not found" },
         { status: 200 }
       );
     }
@@ -33,19 +38,20 @@ export async function POST(request: Request) {
     const newExpirationDate = new Date();
     newExpirationDate.setDate(newExpirationDate.getDate() + 30);
 
-    // Update the client's subscription
-    await prisma.client.update({
-      where: { id: client.id },
+    // Update the service purchase
+    await prisma.servicePurchase.update({
+      where: { id: servicePurchase.id },
       data: {
-        subscriptionExpiresAt: newExpirationDate,
-        paymentHash: null,
+        expiresAt: newExpirationDate,
+        isActive: true,
+        paymentHash: null, // Clear the payment hash after processing
       },
     });
 
     console.log(
       `Successfully processed payment for client ${
-        client.username
-      }. Subscription active until ${newExpirationDate.toISOString()}.`
+        servicePurchase.client.username
+      }. Service active until ${newExpirationDate.toISOString()}.`
     );
 
     return NextResponse.json({ message: "Webhook processed successfully" });

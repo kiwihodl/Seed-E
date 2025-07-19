@@ -57,7 +57,13 @@ export default function GenerateRecoveryKeyPage() {
       });
 
       if (response.ok) {
-        router.push("/provider-dashboard");
+        // Check userType and redirect to appropriate dashboard
+        const userType = localStorage.getItem("userType");
+        if (userType === "client") {
+          router.push("/client-dashboard");
+        } else {
+          router.push("/provider-dashboard");
+        }
       } else {
         const data = await response.json();
         setError(data.error || "Failed to confirm recovery key");

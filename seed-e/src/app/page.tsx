@@ -41,12 +41,20 @@ export default function Home() {
             </div>
             <div className="mt-3 rounded-md shadow sm:mt-0 sm:ml-3">
               <Link
-                href="/login"
-                className="w-full flex items-center justify-center px-8 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 md:py-4 md:text-lg md:px-10 transition-colors"
+                href="/client-register"
+                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 md:py-4 md:text-lg md:px-10 transition-colors"
               >
-                Sign In
+                Register as Client
               </Link>
             </div>
+          </div>
+          <div className="mt-3">
+            <Link
+              href="/login"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium"
+            >
+              Already have an account? Sign in
+            </Link>
           </div>
         </div>
 
@@ -177,11 +185,11 @@ export default function Home() {
                 For Clients
               </h4>
               <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                <li>Browse randomized provider listings</li>
-                <li>Filter by policy type, fees, and reliability</li>
-                <li>Pay initial backup fee via Lightning</li>
-                <li>Receive verified xpub for multisig setup</li>
+                <li>Browse available provider services</li>
+                <li>View provider details and xpub information</li>
+                <li>Purchase access to signing services</li>
                 <li>Request signatures with time-delay protection</li>
+                <li>Track signature request status and penalties</li>
               </ol>
             </div>
           </div>

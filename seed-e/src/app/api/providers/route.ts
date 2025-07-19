@@ -16,18 +16,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if provider name already exists
-    const existingProvider = await prisma.provider.findFirst({
-      where: {
-        username: providerName.trim(),
-      },
+    // Check if username already exists (both providers and clients)
+    const existingProvider = await prisma.provider.findUnique({
+      where: { username: providerName.trim() },
     });
 
-    if (existingProvider) {
+    const existingClient = await prisma.client.findUnique({
+      where: { username: providerName.trim() },
+    });
+
+    if (existingProvider || existingClient) {
       return NextResponse.json(
         {
           error:
-            "Provider name already exists. Please choose a different name or login with your existing account.",
+            "Username already exists. Please choose a different username or login with your existing account.",
         },
         { status: 409 }
       );

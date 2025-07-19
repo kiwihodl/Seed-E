@@ -82,29 +82,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    // Check if client already exists
+    let client = await prisma.client.findUnique({
+      where: { username },
+    });
 
-    // Associate the paymentHash with the client
-    // to verify payment later via a webhook.
+    if (!client) {
+      // Create new client
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+
+      client = await prisma.client.create({
+        data: {
+          username,
+          passwordHash,
+        },
+      });
+    }
+
+    // Generate Lightning invoice
     const { invoice, paymentHash } = await generateLightningInvoice(
       `Purchase for ${username} on Seed-E`,
       service.initialBackupFee
     );
 
-    // Create the client record
-    const client = await prisma.client.create({
-      data: {
-        username,
-        passwordHash,
-        paymentHash, // Store the payment hash to verify later
-        serviceId: service.id,
-        // Set subscriptionExpiresAt after payment confirmation
-      },
-    });
+    // Create service purchase record
+    // const servicePurchase = await prisma.servicePurchase.create({
+    //   data: {
+    //     clientId: client.id,
+    //     serviceId: service.id,
+    //     paymentHash,
+    //     isActive: false, // Will be activated after payment confirmation
+    //   },
+    // });
 
     console.log(
-      `Created client ${client.username} with paymentHash ${paymentHash}`
+      `Created service purchase for client ${client.username} with paymentHash ${paymentHash}`
     );
 
     return NextResponse.json({ invoice });

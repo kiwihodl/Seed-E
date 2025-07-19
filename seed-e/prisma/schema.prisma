@@ -38,6 +38,7 @@ model Provider {
   username        String  @unique
   passwordHash    String
   twoFactorSecret String? // Encrypted TOTP secret
+  recoveryKey     String? // Encrypted recovery key
   penaltyCount    Int     @default(0)
 
   // The services (key offerings) this provider has.
@@ -84,13 +85,16 @@ model Service {
   isActive Boolean @default(true)
 
   // The clients who have purchased this service.
-  clients Client[]
+  servicePurchases ServicePurchase[]
+
+  // The signature requests for this service.
+  signatureRequests SignatureRequest[]
 
   // The subscription requests for this service.
   subscriptionRequests SubscriptionRequest[]
 }
 
-// Represents a Client's relationship with a specific Service they have purchased.
+// Represents a client who can purchase services.
 model Client {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -99,22 +103,40 @@ model Client {
   username        String  @unique
   passwordHash    String
   twoFactorSecret String? // Encrypted TOTP secret
+  recoveryKey     String? // Encrypted recovery key
 
-  // The payment hash of the invoice used to create/renew the subscription.
-  // This will be used to link LND webhook events back to the client.
-  paymentHash String? @unique
-
-  serviceId String
-  service   Service @relation(fields: [serviceId], references: [id])
-
-  // Tracks the expiration date of the client's subscription for this service.
-  subscriptionExpiresAt DateTime?
+  // The services this client has purchased.
+  servicePurchases ServicePurchase[]
 
   // The pending signature requests from this client.
   signatureRequests SignatureRequest[]
 
   // The subscription payment requests from this client.
   subscriptionRequests SubscriptionRequest[]
+}
+
+// Represents a Client's purchase of a specific Service.
+model ServicePurchase {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  // The payment hash of the invoice used to purchase the service.
+  paymentHash String? @unique
+
+  // Tracks the expiration date of the client's access to this service.
+  expiresAt DateTime?
+
+  // Whether the service is currently active for this client.
+  isActive Boolean @default(true)
+
+  @@unique([clientId, serviceId])
 }
 
 enum RequestStatus {
@@ -139,6 +161,9 @@ model SignatureRequest {
   clientId String
   client   Client @relation(fields: [clientId], references: [id])
 
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
   // The PSBT (Partially Signed Bitcoin Transaction) needing a signature.
   // Stored as a base64 string.
   unsignedPsbt String
@@ -151,6 +176,9 @@ model SignatureRequest {
 
   // The timestamp when the provider uploaded the signed PSBT.
   signedAt DateTime?
+
+  // The fee paid for this signature request.
+  fee BigInt
 
   status RequestStatus @default(PENDING)
 }

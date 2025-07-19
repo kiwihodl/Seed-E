@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Button from "@/components/Button";
 
 export default function Setup2FAPage() {
   const [qrCode, setQrCode] = useState("");
@@ -9,7 +10,6 @@ export default function Setup2FAPage() {
   const [verificationCode, setVerificationCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -19,8 +19,8 @@ export default function Setup2FAPage() {
 
   const generate2FASetup = async () => {
     try {
-      // For now, use a mock username since we don't have session management yet
-      const mockUsername = "testuser"; // This should come from the session/context
+      // Get username from localStorage
+      const username = localStorage.getItem("username") || "testuser";
 
       const response = await fetch("/api/auth/2fa/generate", {
         method: "POST",
@@ -28,7 +28,7 @@ export default function Setup2FAPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: mockUsername,
+          username: username,
         }),
       });
 
@@ -52,13 +52,15 @@ export default function Setup2FAPage() {
     setError("");
 
     try {
+      const username = localStorage.getItem("username") || "testuser";
+
       const response = await fetch("/api/auth/2fa/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: "testuser", // This should come from the session/context
+          username: username,
           token: verificationCode,
           secret: secret, // Pass the secret for proper validation
         }),
@@ -67,10 +69,8 @@ export default function Setup2FAPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.verified) {
-          setSuccess(true);
-          setTimeout(() => {
-            router.push("/generate-recovery-key");
-          }, 2000);
+          // Go directly to master key generation
+          router.push("/generate-recovery-key");
         } else {
           setError("Invalid verification code. Please try again.");
         }
@@ -85,38 +85,6 @@ export default function Setup2FAPage() {
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900">
-              <svg
-                className="h-6 w-6 text-green-600 dark:text-green-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-              2FA Setup Complete!
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Redirecting to recovery key generation...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -175,39 +143,16 @@ export default function Setup2FAPage() {
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={loading}
             disabled={loading || !verificationCode}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-lg font-bold rounded-md text-black bg-[#FF9500] hover:bg-[#FF9500]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF9500] disabled:opacity-50 transition-colors"
           >
-            {loading ? (
-              <div className="flex items-center">
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-black"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Verifying...
-              </div>
-            ) : (
-              "Verify & Complete Setup"
-            )}
-          </button>
+            Verify & Complete Setup
+          </Button>
         </form>
       </div>
     </div>

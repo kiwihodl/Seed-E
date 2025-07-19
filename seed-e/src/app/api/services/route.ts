@@ -1,85 +1,54 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// Function to shuffle an array (Fisher-Yates shuffle)
-function shuffle<T>(array: T[]): T[] {
-  let currentIndex = array.length,
-    randomIndex;
-  while (currentIndex !== 0) {
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-    [array[currentIndex], array[randomIndex]] = [
-      array[randomIndex],
-      array[currentIndex],
-    ];
-  }
-
-  return array;
-}
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const policyType = searchParams.get("policyType");
-    const maxInitialBackupFee = searchParams.get("maxInitialBackupFee");
-    const maxPerSignatureFee = searchParams.get("maxPerSignatureFee");
-    const maxMonthlyFee = searchParams.get("maxMonthlyFee");
-    const sortBy = searchParams.get("sortBy");
-
-    const where: Record<string, unknown> = {
-      isActive: true,
-    };
-
-    if (policyType && ["P2WSH", "P2TR", "P2SH"].includes(policyType)) {
-      where.policyType = policyType;
-    }
-
-    if (maxInitialBackupFee) {
-      where.initialBackupFee = {
-        lte: BigInt(maxInitialBackupFee),
-      };
-    }
-
-    if (maxPerSignatureFee) {
-      where.perSignatureFee = {
-        lte: BigInt(maxPerSignatureFee),
-      };
-    }
-
-    if (maxMonthlyFee) {
-      where.monthlyFee = {
-        lte: BigInt(maxMonthlyFee),
-      };
-    }
-
-    const orderBy: Record<string, unknown> = {};
-    if (sortBy === "penalties_asc") {
-      orderBy.provider = { penaltyCount: "asc" };
-    } else if (sortBy === "delay_desc") {
-      orderBy.minTimeDelay = "desc";
-    }
-
+    // Get all services with provider information
     const services = await prisma.service.findMany({
-      where,
-      orderBy,
       include: {
         provider: {
           select: {
             username: true,
-            createdAt: true,
           },
         },
       },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    // Randomize the order of services ONLY if no specific sort order is applied
-    const finalServices = !sortBy ? shuffle(services) : services;
+    // Transform data for client view
+    const transformedServices = services.map(
+      (service: {
+        id: string;
+        provider: { username: string };
+        policyType: string;
+        xpub: string;
+        initialBackupFee: bigint;
+        perSignatureFee: bigint;
+        monthlyFee: bigint | null;
+        minTimeDelay: number;
+        createdAt: Date;
+      }) => ({
+        id: service.id,
+        providerName: service.provider.username,
+        policyType: service.policyType,
+        xpub: service.xpub,
+        initialBackupFee: Number(service.initialBackupFee),
+        perSignatureFee: Number(service.perSignatureFee),
+        monthlyFee: service.monthlyFee ? Number(service.monthlyFee) : undefined,
+        minTimeDelay: service.minTimeDelay,
+        createdAt: service.createdAt.toISOString(),
+      })
+    );
 
-    return NextResponse.json(finalServices);
+    return NextResponse.json({
+      services: transformedServices,
+    });
   } catch (error) {
-    console.error("Failed to fetch services:", error);
+    console.error("Error fetching services:", error);
     return NextResponse.json(
       { error: "Failed to fetch services" },
       { status: 500 }

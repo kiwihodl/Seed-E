@@ -5,103 +5,159 @@ alwaysApply: false
 ---
 # Seed-E Project Status
 
-## 🎯 **Current Status: Real Key Integration COMPLETED**
+## 🎯 **Current Phase: Client-Side Implementation**
 
-### **Phase 1: Core Infrastructure ✅ COMPLETED**
-- ✅ Next.js 15 with App Router and TypeScript
-- ✅ Tailwind CSS v3 with dark mode support
-- ✅ Prisma ORM with PostgreSQL database
-- ✅ Authentication system with 2FA
-- ✅ Provider and Client dashboards
-- ✅ Basic signature request flow
+### ✅ **Recently Completed (Latest Session)**
 
-### **Phase 2: Real Key Integration ✅ COMPLETED**
-- ✅ Migrated provider policies API to use Prisma database
-- ✅ Added real Bitcoin key validation using bip32 and tiny-secp256k1
-- ✅ Added Base64 signature validation (64 bytes for ECDSA)
-- ✅ Added BOLT12 offer format validation
-- ✅ Created real test data generation script
-- ✅ Fixed server startup and Docker container management
-- ✅ Added duplicate xpub validation to prevent same key being used twice
-- ✅ Added "Fill Test Data" button for easier testing with fresh real data
-- ✅ Added "Clear Form" button for form reset
-- ✅ Added clickable key cards with detailed modal view
-- ✅ Improved form validation with error messages
-- ✅ Added visual indicators for clickable elements
-- ✅ **NO MORE DUMMY DATA** - All test data is cryptographically valid
+#### **Client-Side Registration & Dashboard**
+- ✅ **Client Registration Page**: Complete registration flow with username/password validation
+- ✅ **Client Dashboard**: Interactive dashboard with service browsing and signature request tracking
+- ✅ **Service Discovery**: API endpoint to list all available provider services
+- ✅ **Database Schema Updates**: Added Client model and ServicePurchase relationship
+- ✅ **Login Integration**: Updated login to handle both providers and clients
+- ✅ **Home Page Updates**: Added client registration links and improved navigation
 
-### **Phase 3: Key Derivation and Management (NEXT)**
-- 🔄 Implement key derivation from master keys
-- 🔄 Add key backup and recovery functionality
-- 🔄 Implement key rotation and replacement
-- 🔄 Add key usage analytics and monitoring
+#### **Key Features Implemented**
+- **Client Registration**: `/client-register` page with same validation as providers
+- **Client Dashboard**: `/client-dashboard` with service browsing and request tracking
+- **Service Browsing**: View all available provider services with details
+- **Service Details Modal**: Click to view full service information including xpub
+- **Signature Request Tracking**: Placeholder for future signature request management
+- **Consistent Styling**: Same dark/light mode and UI components as provider dashboard
 
-### **Phase 4: Service Discovery and Integration (PLANNED)**
-- ⏳ Implement service discovery protocol
-- ⏳ Add Lightning Network integration for payments
-- ⏳ Implement client-provider communication
-- ⏳ Add automated signature request processing
+#### **Database Schema Enhancements**
+- **Client Model**: Independent client accounts with 2FA and recovery keys
+- **ServicePurchase Model**: Tracks client-service relationships and payment status
+- **SignatureRequest Model**: Enhanced with service relationship and fee tracking
+- **Proper Relationships**: Clean separation between providers, clients, and services
 
-## 🚀 **Recent Achievements**
+### 🔄 **In Progress**
 
-### **Real Bitcoin Integration**
-- **Fresh Key Generation**: Each "Fill Test Data" click generates unique real Bitcoin keys
-- **Cryptographic Validation**: All signatures are real ECDSA (64 bytes)
-- **Duplicate Prevention**: System prevents same xpub being used twice
-- **Real BIP32 Derivation**: Uses proper Bitcoin key derivation paths
+#### **Next Steps for Client Side**
+- **Service Purchase Flow**: Implement Lightning payment integration for service purchases
+- **Signature Request Creation**: Build form for clients to submit PSBTs for signing
+- **Request Status Tracking**: Real-time updates on signature request status
+- **Payment Integration**: Lightning Network payment processing
 
-### **Enhanced User Experience**
-- **Interactive Key Cards**: Click to view full key details in modal
-- **Real-time Validation**: Form validates as you type
-- **Visual Feedback**: Clear indicators for clickable elements
-- **Error Prevention**: Comprehensive validation prevents invalid submissions
+### ⏳ **Planned Features**
 
-### **Technical Improvements**
-- **API Endpoints**: `/api/generate-test-data` for fresh real data
-- **Database Integration**: Full Prisma integration with PostgreSQL
-- **Error Handling**: Comprehensive error messages and validation
-- **Performance**: Optimized form validation and state management
+#### **Phase 3: Advanced Features**
+- **PSBT Validation**: Verify PSBT format and compatibility with service policy
+- **Signature Verification**: Validate provider signatures match the service xpub
+- **Time-based Penalties**: Track provider response times and penalties
+- **Provider Reputation**: Build reputation system based on performance
 
-## 🔧 **Current "Add Key" Functionality:**
-- ✅ **Real Bitcoin xpub validation** using BIP32
-- ✅ **Real ECDSA signature validation** (64 bytes)
-- ✅ **Real BOLT12 offer validation**
-- ✅ **Duplicate key prevention**
-- ✅ **Fresh real data generation** on demand
-- ✅ **Interactive key management** with detailed views
+#### **Phase 4: Service Discovery & Integration**
+- **Service Filtering**: Filter by policy type, fees, provider reputation
+- **Advanced Search**: Search providers by location, reliability metrics
+- **API Documentation**: Complete API documentation for wallet integration
+- **Mobile Application**: React Native mobile app for on-the-go access
 
-## 📊 **Database Schema:**
-- ✅ **Provider model** with authentication
-- ✅ **Service model** with real Bitcoin data
-- ✅ **Client model** for user management
-- ✅ **SignatureRequest model** for transaction flow
-- ✅ **SubscriptionRequest model** for payments
+### 🛠 **Technical Stack**
 
-## 🎯 **Next Steps:**
-1. **Phase 3**: Implement key derivation and management
-2. **Phase 4**: Add service discovery and Lightning integration
-3. **Testing**: Comprehensive testing with real Bitcoin scenarios
-4. **Documentation**: Complete API documentation and user guides
+#### **Frontend**
+- **Framework**: Next.js 15 with App Router
+- **Styling**: Tailwind CSS v3 with dark mode support
+- **State Management**: React hooks with localStorage persistence
+- **Components**: Reusable Button, Modal, Form components
 
-## 🛠 **Technical Stack:**
-- **Frontend**: Next.js 15, TypeScript, Tailwind CSS
-- **Backend**: Next.js API routes, Prisma ORM
-- **Database**: PostgreSQL with Docker
-- **Bitcoin**: bitcoinjs-lib, bip32, tiny-secp256k1
+#### **Backend**
+- **API Routes**: Next.js API routes with TypeScript
+- **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: TOTP 2FA with speakeasy
-- **Validation**: Real-time form validation with error handling
+- **Bitcoin Integration**: bitcoinjs-lib, bip32, tiny-secp256k1
 
-## 🚨 **CRITICAL: SERVER MANAGEMENT**
-**ALWAYS CHECK FOR EXISTING SERVER FIRST** - Before running `npm run dev` or starting any server, check if one is already running:
-- Use `ps aux | grep "next dev"` to check for existing server
-- Use `curl -I http://localhost:3000` to test if server is responding
-- Only start new server if none exists or current one is not responding
-- User already has terminal running - don't start new servers unnecessarily
+#### **Bitcoin Features**
+- **Real Key Validation**: BIP32 xpub validation with cryptographic verification
+- **Signature Verification**: 64-byte ECDSA signature validation
+- **Fresh Key Generation**: Unique Bitcoin keys generated on demand
+- **Duplicate Prevention**: System prevents same xpub being used twice
 
-## 🚨 **CRITICAL: DIRECTORY CONFUSION**
-**DO NOT ASSUME WRONG DIRECTORY** - If localhost:3000 is working, the server IS running:
-- User is in `/Users/homefolder/Desktop/Seed-E` (correct for this project)
-- Server is running via Docker/PostgreSQL setup
-- If localhost responds, server is working - focus on actual errors
-- Don't suggest `cd seed-e` when localhost is already working
-- The issue is likely API validation, not directory problems
+### 📊 **Current Database Models**
+
+#### **Core Models**
+- **Provider**: Service providers with authentication and reputation tracking
+- **Client**: End users who purchase signing services
+- **Service**: Bitcoin key configurations with pricing and policies
+- **ServicePurchase**: Client-service relationships with payment tracking
+- **SignatureRequest**: Transaction signing requests with status tracking
+- **SubscriptionRequest**: Payment and subscription management
+
+#### **Key Features**
+- **Real Bitcoin Data**: xpub, signatures, BOLT12 offers
+- **Time-based Releases**: Configurable signature delays
+- **Payment Integration**: Lightning Network payments
+- **Audit Trail**: Complete transaction history
+
+### 🎨 **UI/UX Features**
+
+#### **Design System**
+- **Consistent Theming**: Dark/light mode with localStorage persistence
+- **Interactive Elements**: Clickable cards, modals, and visual feedback
+- **Real-time Validation**: Form validation with immediate feedback
+- **Responsive Design**: Mobile-friendly interface
+- **Accessibility**: Proper contrast ratios and keyboard navigation
+
+#### **Color Scheme**
+- **Primary**: #FF9500 (Orange accent)
+- **Success**: Green for positive actions
+- **Warning**: Yellow for pending states
+- **Error**: Red for errors and critical actions
+
+### 🔒 **Security Features**
+
+#### **Authentication & Authorization**
+- **2FA Protection**: TOTP-based two-factor authentication for all accounts
+- **Secure Password Handling**: bcrypt password hashing
+- **Recovery Key System**: Backup authentication methods
+- **Session Management**: Persistent user sessions with proper cleanup
+
+#### **Bitcoin Security**
+- **Real Cryptographic Validation**: All Bitcoin keys and signatures are cryptographically verified
+- **Duplicate Prevention**: System prevents same xpub being used multiple times
+- **Time-based Security**: Configurable delays for signature releases
+- **Secure Storage**: Encrypted sensitive data storage
+
+### 🚨 **Important Notes**
+
+#### **Development Guidelines**
+- **Server Management**: Always check for existing servers before starting new ones
+- **Database Migrations**: Use `npx prisma db push` for schema changes
+- **Theme Support**: All new components must support both light and dark modes
+- **Error Handling**: Implement proper error handling and validation
+
+#### **Testing Requirements**
+- **Real Bitcoin Data**: Use fresh Bitcoin keys and signatures for testing
+- **Cross-browser Testing**: Ensure compatibility across major browsers
+- **Mobile Testing**: Verify responsive design on mobile devices
+- **Security Testing**: Validate authentication and authorization flows
+
+### 📈 **Performance Metrics**
+
+#### **Current Status**
+- **Provider Registration**: ✅ Complete with 2FA setup
+- **Provider Dashboard**: ✅ Complete with key management
+- **Client Registration**: ✅ Complete with 2FA setup
+- **Client Dashboard**: ✅ Complete with service browsing
+- **Service Discovery**: ✅ Complete with provider listing
+- **Payment Integration**: ⏳ Planned for next phase
+- **Signature Requests**: ⏳ Planned for next phase
+
+### 🎯 **Next Milestone: Payment Integration**
+
+#### **Immediate Goals**
+1. **Lightning Payment Flow**: Implement Lightning Network payment processing
+2. **Service Purchase**: Allow clients to purchase access to provider services
+3. **Payment Verification**: Confirm payments before service activation
+4. **Invoice Management**: Generate and track Lightning invoices
+
+#### **Success Criteria**
+- Clients can browse and purchase services
+- Lightning payments are processed securely
+- Service access is granted after payment confirmation
+- Payment history is tracked and auditable
+
+---
+
+**Last Updated**: Current session - Client-side registration and dashboard completed
+**Next Review**: After payment integration implementation

@@ -20,6 +20,21 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  // Check if form is valid for login
+  const isLoginFormValid = () => {
+    return userType && username.trim() && password.trim();
+  };
+
+  // Check if 2FA token is valid (6 digits)
+  const is2FAFormValid = () => {
+    return twoFactorToken.length === 6;
+  };
+
+  // Check if master key is provided
+  const isForgotPasswordFormValid = () => {
+    return masterKey.trim().length > 0;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -53,7 +68,9 @@ export default function LoginPage() {
         } else {
           // Login successful, redirect to appropriate dashboard
           router.push(
-            userType === "provider" ? "/provider-dashboard" : "/dashboard"
+            userType === "provider"
+              ? "/provider-dashboard"
+              : "/client-dashboard"
           );
         }
       } else {
@@ -119,7 +136,7 @@ export default function LoginPage() {
 
         // 2FA verified, redirect to appropriate dashboard
         router.push(
-          userType === "provider" ? "/provider-dashboard" : "/dashboard"
+          userType === "provider" ? "/provider-dashboard" : "/client-dashboard"
         );
       } else {
         setError("Invalid 2FA token");
@@ -158,7 +175,7 @@ export default function LoginPage() {
 
         // 2FA setup successful, redirect to appropriate dashboard
         router.push(
-          userType === "provider" ? "/provider-dashboard" : "/dashboard"
+          userType === "provider" ? "/provider-dashboard" : "/client-dashboard"
         );
       } else {
         setError("Invalid 2FA token");
@@ -191,7 +208,7 @@ export default function LoginPage() {
       if (response.ok) {
         // Store credentials in localStorage
         localStorage.setItem("username", data.username);
-        localStorage.setItem("userType", "provider"); // Default to provider for now
+        localStorage.setItem("userType", data.userType || "provider"); // Use actual userType from response
         localStorage.setItem("tempPassword", data.newPassword);
 
         // Redirect to reset password page
@@ -256,7 +273,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                   <button
@@ -305,89 +322,74 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
-                {error}
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg
+                      className="h-5 w-5 text-red-400"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      {error}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              fullWidth
-              loading={isLoading}
-              disabled={isLoading}
-            >
-              Sign in
-            </Button>
+            <div>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={isLoading}
+                disabled={isLoading || !isLoginFormValid()}
+              >
+                Sign in
+              </Button>
+            </div>
 
             <div className="text-center">
               <button
                 type="button"
                 onClick={() => setStep("forgot-password")}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 focus:outline-none"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
               >
-                I forgot my username, password and/or 2FA
+                Forgot your password?
               </button>
             </div>
-          </form>
-        )}
 
-        {step === "forgot-password" && (
-          <div className="mt-8 space-y-6">
             <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Reset Password and 2FA
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                Enter your master key to reset your password and 2FA settings.
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Don&apos;t have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => router.push("/register")}
+                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                >
+                  Register as Provider
+                </button>
+                {" or "}
+                <button
+                  type="button"
+                  onClick={() => router.push("/client-register")}
+                  className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                >
+                  Register as Client
+                </button>
               </p>
             </div>
-
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Master Key
-                </label>
-                <input
-                  type="text"
-                  value={masterKey}
-                  onChange={(e) => setMasterKey(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter your master key"
-                  required
-                />
-              </div>
-
-              {error && (
-                <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex space-x-3">
-                <Button
-                  type="button"
-                  onClick={() => setStep("login")}
-                  variant="secondary"
-                  size="md"
-                  fullWidth
-                >
-                  Back to Login
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                  fullWidth
-                  loading={isLoading}
-                  disabled={isLoading}
-                >
-                  Reset Password & 2FA
-                </Button>
-              </div>
-            </form>
-          </div>
+          </form>
         )}
 
         {step === "2fa-setup" && (
@@ -406,44 +408,65 @@ export default function LoginPage() {
                     alt="2FA QR Code"
                     width={200}
                     height={200}
-                    className="mx-auto"
+                    className="border border-gray-300 dark:border-gray-600 rounded"
                   />
                 </div>
               )}
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Enter the 6-digit code from your authenticator app:
+              </p>
             </div>
 
-            <form onSubmit={handle2FASetup} className="space-y-4">
+            <form onSubmit={handle2FASetup}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Enter the 6-digit code from your authenticator app
-                </label>
                 <input
                   type="text"
                   value={twoFactorToken}
                   onChange={(e) => setTwoFactorToken(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="000000"
+                  placeholder="Enter 6-digit code"
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-center text-lg tracking-widest"
                   maxLength={6}
                   required
                 />
               </div>
 
               {error && (
-                <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
-                  {error}
+                <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-red-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {error}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                fullWidth
-                loading={isLoading}
-                disabled={isLoading}
-              >
-                Verify and Complete Setup
-              </Button>
+              <div className="mt-6">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
+                  disabled={isLoading || !is2FAFormValid()}
+                >
+                  Verify and Complete Setup
+                </Button>
+              </div>
             </form>
           </div>
         )}
@@ -459,36 +482,131 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handle2FAVerification} className="space-y-4">
+            <form onSubmit={handle2FAVerification}>
               <div>
                 <input
                   type="text"
                   value={twoFactorToken}
                   onChange={(e) => setTwoFactorToken(e.target.value)}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="000000"
+                  placeholder="Enter 6-digit code"
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-center text-lg tracking-widest"
                   maxLength={6}
                   required
                 />
               </div>
 
               {error && (
-                <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
-                  {error}
+                <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-red-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {error}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                fullWidth
-                loading={isLoading}
-                disabled={isLoading}
-              >
-                Verify
-              </Button>
+              <div className="mt-6">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
+                  disabled={isLoading || !is2FAFormValid()}
+                >
+                  Verify
+                </Button>
+              </div>
             </form>
+          </div>
+        )}
+
+        {step === "forgot-password" && (
+          <div className="mt-8 space-y-6">
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Reset Password and 2FA
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Enter your master key to reset your password and 2FA:
+              </p>
+            </div>
+
+            <form onSubmit={handleForgotPassword}>
+              <div>
+                <input
+                  type="text"
+                  value={masterKey}
+                  onChange={(e) => setMasterKey(e.target.value)}
+                  placeholder="Enter your master key"
+                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-red-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        {error}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={isLoading}
+                  disabled={isLoading || !isForgotPasswordFormValid()}
+                >
+                  Reset Password and 2FA
+                </Button>
+              </div>
+            </form>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setStep("login")}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+              >
+                Back to login
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -36,8 +36,9 @@ export default function RootLayout({
     localStorage.setItem("theme", isDark ? "dark" : "light");
   }, [isDark]);
 
-  // Don't show theme toggle on dashboard page (it has its own)
-  const showThemeToggle = pathname !== "/provider-dashboard";
+  // Don't show theme toggle on dashboard pages (they have their own in avatar dropdown)
+  const showThemeToggle =
+    pathname !== "/provider-dashboard" && pathname !== "/client-dashboard";
 
   return (
     <html lang="en">

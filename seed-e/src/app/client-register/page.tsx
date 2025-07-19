@@ -27,14 +27,14 @@ const validatePassword = (password: string) => {
   return errors;
 };
 
-export default function RegisterPage() {
+export default function ClientRegister() {
   const [formData, setFormData] = useState({
-    providerName: "",
+    username: "",
     password: "",
     confirmPassword: "",
   });
   const [validationErrors, setValidationErrors] = useState({
-    providerName: "",
+    username: "",
     password: "",
     confirmPassword: "",
   });
@@ -63,7 +63,7 @@ export default function RegisterPage() {
     setIsCheckingUsername(true);
     try {
       const response = await fetch(
-        `/api/providers/check-username?name=${encodeURIComponent(username)}`,
+        `/api/clients/check-username?name=${encodeURIComponent(username)}`,
         {
           method: "GET",
           headers: {
@@ -84,7 +84,7 @@ export default function RegisterPage() {
   // Handle username change with debounce
   const handleUsernameChange = useCallback(
     (value: string) => {
-      setFormData((prev) => ({ ...prev, providerName: value }));
+      setFormData((prev) => ({ ...prev, username: value }));
 
       // Clear existing timer
       if (usernameTimer) {
@@ -104,14 +104,14 @@ export default function RegisterPage() {
   // Validate form on mount and when formData changes
   useEffect(() => {
     const errors = {
-      providerName: "",
+      username: "",
       password: "",
       confirmPassword: "",
     };
 
-    // Validate provider name
-    if (formData.providerName.length > 0 && formData.providerName.length < 3) {
-      errors.providerName = "Provider name must be at least 3 characters long";
+    // Validate username
+    if (formData.username.length > 0 && formData.username.length < 3) {
+      errors.username = "Username must be at least 3 characters long";
     }
 
     // Validate password
@@ -135,10 +135,10 @@ export default function RegisterPage() {
 
   const isFormValid = () => {
     return (
-      formData.providerName.trim() &&
+      formData.username.trim() &&
       formData.password &&
       formData.confirmPassword &&
-      !validationErrors.providerName &&
+      !validationErrors.username &&
       !validationErrors.password &&
       !validationErrors.confirmPassword &&
       usernameAvailable === true &&
@@ -157,13 +157,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/providers", {
+      const response = await fetch("/api/clients/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          providerName: formData.providerName,
+          username: formData.username,
           password: formData.password,
         }),
       });
@@ -173,6 +173,12 @@ export default function RegisterPage() {
 
       if (response.ok) {
         // console.log("Registration successful, redirecting to 2FA setup...");
+        // Store username for 2FA setup
+        if (typeof window !== "undefined") {
+          localStorage.setItem("username", formData.username.trim());
+          localStorage.setItem("userType", "client");
+          localStorage.setItem("tempPassword", formData.password);
+        }
         router.push("/setup-2fa");
       } else {
         setError(data.error || "Registration failed");
@@ -194,8 +200,8 @@ export default function RegisterPage() {
       [name]: value,
     }));
 
-    // Check username availability when provider name changes
-    if (name === "providerName") {
+    // Check username availability when username changes
+    if (name === "username") {
       handleUsernameChange(value);
     }
   };
@@ -204,11 +210,28 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
+          <div className="flex justify-center">
+            <div className="w-12 h-12 bg-[#FF9500] rounded-full flex items-center justify-center">
+              <svg
+                className="w-8 h-8 text-black"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </div>
+          </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            Create Your Provider Account
+            Create Client Account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-300">
-            Set up your Bitcoin signing service
+            Register as a client to access signing services
           </p>
         </div>
 
@@ -216,31 +239,37 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Provider Name
+                Username
               </label>
               <input
                 type="text"
-                name="providerName"
-                value={formData.providerName}
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                placeholder="Enter your provider name"
+                className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                  validationErrors.username || usernameAvailable === false
+                    ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100"
+                    : usernameAvailable === true
+                    ? "border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100"
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                }`}
+                placeholder="Enter your username"
                 required
                 minLength={3}
               />
-              {validationErrors.providerName && (
+              {validationErrors.username && (
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                  {validationErrors.providerName}
+                  {validationErrors.username}
                 </p>
               )}
               {usernameAvailable === false && (
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                  This provider name is already taken
+                  This username is already taken
                 </p>
               )}
               {usernameAvailable === true && (
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  This provider name is available
+                  This username is available
                 </p>
               )}
               {isCheckingUsername && (
@@ -260,7 +289,11 @@ export default function RegisterPage() {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                  className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                    validationErrors.password
+                      ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  }`}
                   placeholder="Create a strong password"
                   required
                   minLength={8}
@@ -324,7 +357,11 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                  className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                    validationErrors.confirmPassword
+                      ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100"
+                      : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  }`}
                   placeholder="Confirm your password"
                   required
                   minLength={8}
@@ -376,11 +413,12 @@ export default function RegisterPage() {
                   {validationErrors.confirmPassword}
                 </p>
               )}
-              {formData.password === formData.confirmPassword && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  Passwords match!
-                </p>
-              )}
+              {formData.password === formData.confirmPassword &&
+                formData.confirmPassword.length > 0 && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    Passwords match!
+                  </p>
+                )}
             </div>
           </div>
 
@@ -398,19 +436,33 @@ export default function RegisterPage() {
             loading={loading}
             disabled={loading || !isFormValid()}
           >
-            Create Account
+            Create Client Account
           </Button>
         </form>
 
         <div className="text-center">
           <p className="text-sm text-gray-600 dark:text-gray-300">
             Already have an account?{" "}
-            <a
-              href="/login"
-              className="font-medium text-[#FF9500] hover:text-[#FF9500]/80"
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="font-medium text-[#FF9500] hover:text-[#FF9500]/80 focus:outline-none"
             >
               Sign in
-            </a>
+            </button>
+          </p>
+        </div>
+
+        <div className="text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Want to provide signing services?{" "}
+            <button
+              type="button"
+              onClick={() => router.push("/register")}
+              className="font-medium text-[#FF9500] hover:text-[#FF9500]/80 focus:outline-none"
+            >
+              Register as Provider
+            </button>
           </p>
         </div>
       </div>

@@ -19,25 +19,30 @@ export async function POST(request: Request) {
     // Find the client and service
     const client = await prisma.client.findUnique({
       where: { id: clientId },
-      include: {
-        service: {
-          include: {
-            provider: true,
-          },
-        },
-      },
     });
 
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
+    // Find the service
+    const service = await prisma.service.findUnique({
+      where: { id: serviceId },
+      include: {
+        provider: true,
+      },
+    });
+
+    if (!service) {
+      return NextResponse.json({ error: "Service not found" }, { status: 404 });
+    }
+
     // Calculate subscription amount based on type
     let subscriptionAmount: bigint;
     if (subscriptionType === "monthly") {
-      subscriptionAmount = client.service.monthlyFee || BigInt(0);
+      subscriptionAmount = service.monthlyFee || BigInt(0);
     } else if (subscriptionType === "annual") {
-      subscriptionAmount = client.service.annualFee || BigInt(0);
+      subscriptionAmount = service.annualFee || BigInt(0);
     } else {
       return NextResponse.json(
         { error: "Invalid subscription type" },
@@ -60,7 +65,7 @@ export async function POST(request: Request) {
         kind: 23194, // NIP-47 request
         created_at: Math.floor(Date.now() / 1000),
         tags: [
-          ["p", client.service.provider.id], // Provider's pubkey
+          ["p", service.provider.id], // Provider's pubkey
           ["amount", subscriptionAmount.toString()],
           ["description", `Seed-E ${subscriptionType} subscription`],
         ],
@@ -140,7 +145,7 @@ export async function PUT(request: Request) {
           data: { status: "COMPLETED" },
         });
 
-        // Update client subscription
+        // Update service purchase expiration
         const subscriptionExpiresAt = new Date();
         if (subscriptionRequest.subscriptionType === "monthly") {
           subscriptionExpiresAt.setMonth(subscriptionExpiresAt.getMonth() + 1);
@@ -150,9 +155,16 @@ export async function PUT(request: Request) {
           );
         }
 
-        await prisma.client.update({
-          where: { id: subscriptionRequest.clientId },
-          data: { subscriptionExpiresAt },
+        // Update the service purchase record
+        await prisma.servicePurchase.updateMany({
+          where: {
+            clientId: subscriptionRequest.clientId,
+            serviceId: subscriptionRequest.serviceId,
+          },
+          data: {
+            expiresAt: subscriptionExpiresAt,
+            isActive: true,
+          },
         });
 
         return NextResponse.json({
