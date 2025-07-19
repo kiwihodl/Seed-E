@@ -44,6 +44,33 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 - ✅ **Marketplace Security**: Purchased services disappear from public marketplace
 - ✅ **User-Specific Views**: Providers see all their services, clients see available + purchased
 
+
+## 🔧 API Endpoints
+
+### Authentication
+
+- `POST /api/auth/login` - User authentication
+- `POST /api/auth/2fa/generate` - 2FA setup
+- `POST /api/auth/2fa/verify` - 2FA verification
+- `POST /api/auth/generate-recovery-key` - Recovery key generation
+
+### Provider Management
+
+- `GET /api/providers/policies` - List provider services
+- `POST /api/providers/policies` - Create new service
+- `GET /api/providers/signature-requests` - List pending requests
+- `POST /api/providers/signature-requests` - Submit signed PSBT
+
+### Client Services
+
+- `GET /api/services` - List available services
+- `POST /api/services/purchase` - Purchase a service
+- `GET /api/clients/purchased-services` - List client's purchased services
+
+### Test Data Generation
+
+- `GET /api/generate-test-data` - Generate fresh Bitcoin keys and signatures
+
 > **🚨 Production Requirement**: Current implementation uses mock Lightning invoices with "pending payment" status. For production, Lightning payments must be atomic - either payment succeeds and key is immediately purchased, or payment fails and key remains available. No "pending payment" state should exist in production.
 
 ## 🔒 **Critical Security Information**
@@ -52,6 +79,8 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 
 **No database contains plain text xpubs.** All extended public keys are hashed using HMAC-SHA256 with a server secret before storage. Even if the database is compromised, the actual xpubs remain secure. Only hashed values are stored and transmitted.
 
+**⚠️ Ecosystem Limitation**: The hashed xpub system only prevents key reuse **within our platform's ecosystem**. Providers could still use the same xpub in other services outside our platform. Clients must trust that providers are not reusing keys elsewhere. We can only enforce good key management within our ecosystem - the broader Bitcoin ecosystem requires trust and reputation.
+
 ### **Master Key Requirements**
 
 **This platform is NOT for users who cannot handle basic key backup.** Both clients and providers must securely backup their master keys. If you cannot properly backup a simple master key, you are in the wrong business and should use an ETF or custodial backup service instead.
@@ -59,11 +88,11 @@ A Next.js-based platform that connects Bitcoin clients and providers for secure 
 **Requirements:**
 
 - **Providers**: Must securely store their signing keys and master keys
-- **Clients**: Must backup their master keys for wallet recovery
+- **Clients**: Must backup their master keys for assisted wallet recovery, to prove they bought this service from the provider
 - **No Custodial Service**: This is a non-custodial platform - you control your keys
-- **Self-Service**: Users are responsible for their own key management
+- **Self-Service**: Users are responsible for their own key management, there is no customer support
 
-**If you cannot meet these basic requirements, this platform is not for you.**
+**If you cannot meet these basic requirements, this platform is not for you. You may be better suited for fiat or custodial solutions**
 
 ## 🛠 Technical Stack
 
@@ -91,7 +120,7 @@ Create a `.env` file with the following variables:
 # Database
 DATABASE_URL="postgresql://username:password@localhost:5433/seed-e-db"
 
-# Security (REQUIRED)
+# Security (REQUIRED - Keep this private and unique to your deployment)
 XPUB_HASH_SECRET="your-strong-secret-key-here"
 
 # Optional: Production database
@@ -99,7 +128,14 @@ POSTGRES_PRISMA_URL="your-production-database-url"
 POSTGRES_URL_NON_POOLING="your-production-direct-url"
 ```
 
-**⚠️ Critical**: The `XPUB_HASH_SECRET` is required for secure xpub hashing. Never commit this to version control.
+**⚠️ Critical Security Notes:**
+
+- The `XPUB_HASH_SECRET` is required for secure xpub hashing
+- **Keep this secret private and unique to your deployment**
+- **Never commit this to version control**
+- **Don't share this secret between different deployments**
+- **Once set, don't change it** - changing it will break verification of existing hashed xpubs - I can not overstate how detrimental this will be to your clients and providers.
+- Each deployment should have its own unique secret for maximum security isolation
 
 ### Installation
 
@@ -150,8 +186,6 @@ POSTGRES_URL_NON_POOLING="your-production-direct-url"
 ## 🧪 Testing
 
 ### Manual Testing
-
-Since we removed automated tests to focus on core functionality, testing is done manually:
 
 1. **Client Registration**: Test user registration and validation
 2. **Service Purchase**: Test the complete purchase flow
@@ -288,32 +322,6 @@ curl -X GET http://localhost:3000/api/clients/purchased-services?clientId=test
 - **Payment Integration**: Lightning Network payments
 - **Audit Trail**: Complete transaction history
 
-## 🔧 API Endpoints
-
-### Authentication
-
-- `POST /api/auth/login` - User authentication
-- `POST /api/auth/2fa/generate` - 2FA setup
-- `POST /api/auth/2fa/verify` - 2FA verification
-- `POST /api/auth/generate-recovery-key` - Recovery key generation
-
-### Provider Management
-
-- `GET /api/providers/policies` - List provider services
-- `POST /api/providers/policies` - Create new service
-- `GET /api/providers/signature-requests` - List pending requests
-- `POST /api/providers/signature-requests` - Submit signed PSBT
-
-### Client Services
-
-- `GET /api/services` - List available services
-- `POST /api/services/purchase` - Purchase a service
-- `GET /api/clients/purchased-services` - List client's purchased services
-
-### Test Data Generation
-
-- `GET /api/generate-test-data` - Generate fresh Bitcoin keys and signatures
-
 ## 🎯 Current Status
 
 ### ✅ **Completed Features**
@@ -375,28 +383,6 @@ curl -X GET http://localhost:3000/api/clients/purchased-services?clientId=test
 - **Responsive Design**: Mobile-friendly interface
 - **Accessibility**: Proper contrast ratios and keyboard navigation
 
-## 🚨 Important Notes
-
-### Server Management
-
-- Always check for existing servers before starting new ones
-- Use `ps aux | grep "next dev"` to check running servers
-- Use `curl -I http://localhost:3000` to test server response
-
-### Development Guidelines
-
-- Use Tailwind CSS v3 (not v4) for proper dark mode support
-- All new components must support both light and dark modes
-- Follow the established color scheme (#FF9500 orange accent)
-- Implement proper error handling and validation
-
-### Security Requirements
-
-- **XPUB_HASH_SECRET** environment variable must be set
-- Never log or expose xpubs in plain text
-- Use database transactions for purchase operations
-- Validate all inputs before processing
-
 ## 📝 Contributing
 
 1. Fork the repository
@@ -412,7 +398,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🤝 Support
 
 For support and questions, please open an issue on GitHub or contact the development team.
-
----
-
-**Built with ❤️ for the Bitcoin community**
