@@ -343,3 +343,142 @@ The project is designed as a modern, monolithic web application for simplicity a
 - **API & Frontend in One:** Next.js API Routes will serve the wallet plugin's requests and the frontend dashboard's data needs. The frontend itself will be built in React.
 - **Notifications:** We will use the standard **Web Push API** to send real-time notifications to the provider's PWA when a signature request is pending.
 - **Database:** A standard PostgreSQL database to store provider data, service listings, client IDs (with hashed passwords), and payment states.
+
+---
+
+## 🔧 Development & Testing
+
+### Complete Environment Variables Reference
+
+For Lightning Network integration and full functionality, you need these additional environment variables:
+
+```bash
+# Database Configuration
+DATABASE_URL="postgresql://seed-e-user:seed-e-password@localhost:5433/seed-e-db"
+
+# Lightning Network (LND) Configuration
+LND_REST_URL="http://your-lnd-rest-url:8080"
+LND_INVOICE_MACAROON="your-lnd-invoice-macaroon-here"
+
+# Security
+XPUB_HASH_SECRET="your-random-secret-for-hashing-xpubs"
+
+# Next.js (Optional)
+NEXTAUTH_SECRET="your-nextauth-secret"
+NEXTAUTH_URL="http://localhost:3000"
+```
+
+### Environment Variables Reference
+
+| Variable               | Required | Description                  | Example                                    |
+| ---------------------- | -------- | ---------------------------- | ------------------------------------------ |
+| `DATABASE_URL`         | ✅       | PostgreSQL connection string | `postgresql://user:pass@localhost:5433/db` |
+| `LND_REST_URL`         | ✅       | LND REST API endpoint        | `http://localhost:8080`                    |
+| `LND_INVOICE_MACAROON` | ✅       | LND invoice macaroon (hex)   | `..................`                       |
+| `XPUB_HASH_SECRET`     | ✅       | Secret for hashing xpubs     | `your-random-secret-string`                |
+| `NEXTAUTH_SECRET`      | ❌       | NextAuth.js secret           | `your-secret-here`                         |
+| `NEXTAUTH_URL`         | ❌       | NextAuth.js URL              | `http://localhost:3000`                    |
+
+### Testing Utilities
+
+The project includes several test scripts for different purposes:
+
+#### Test Files Overview
+
+| File                        | Purpose                                 | Usage                                                                           |
+| --------------------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `working-lightning-test.js` | **Complete Lightning Integration Test** | Tests the full flow: provider → service → client → purchase → Lightning invoice |
+| `generate-real-keys.js`     | **Generate Real Bitcoin Keys**          | Creates real xpubs, signatures, and BOLT12 offers for testing                   |
+| `create-test-provider.js`   | **Create Test Provider**                | Creates a test provider in the database                                         |
+| `test-lightning.js`         | **Lightning Service Test**              | Tests Lightning invoice creation directly                                       |
+| `test-purchase-api.js`      | **Purchase API Test**                   | Tests the purchase API endpoint                                                 |
+| `test-lightning-simple.js`  | **Environment Check**                   | Verifies LND environment variables are set                                      |
+| `simple-lightning-test.js`  | **Simple Lightning Test**               | Basic Lightning invoice creation test                                           |
+| `manual-lightning-test.md`  | **Manual Test Guide**                   | Step-by-step manual testing instructions                                        |
+
+#### Running Tests
+
+##### 1. Complete Lightning Integration Test
+
+```bash
+node working-lightning-test.js
+```
+
+**What it does:**
+
+- **Generates fresh real Bitcoin keys** each time using `generate-real-keys.js`
+- Creates a test provider with unique name
+- Creates a **new service** with 1 sat fees using fresh real Bitcoin keys
+- Creates a test client
+- Initiates a purchase and generates a **real Lightning invoice**
+- Tests the complete flow from provider creation to Lightning payment
+- **Each test run creates completely fresh data** - no reused services or keys
+
+**Test Flow:**
+
+1. **Key Generation**: Runs `generate-real-keys.js` to create fresh xpub, signature, and BOLT12 offer
+2. **Provider Creation**: Creates a unique test provider with timestamp-based name
+3. **Service Creation**: Creates a new service with the fresh keys and 1 sat fees
+4. **Client Creation**: Creates a unique test client
+5. **Purchase Initiation**: Purchases the service and generates a Lightning invoice
+6. **Invoice Details**: Displays payment request, amount, description, and expiration
+
+**Note:** This test uses real Lightning Network integration. Each run creates unique providers, services, and clients to avoid conflicts. The Lightning invoice is generated with a 15-minute expiration time.
+
+##### 2. Generate Real Bitcoin Keys
+
+```bash
+node generate-real-keys.js
+```
+
+**What it does:**
+
+- Generates a real BIP32 master key
+- Creates a valid xpub (extended public key)
+- Signs a message with the private key
+- Generates a BOLT12 offer
+- Outputs all values needed for service creation
+
+##### 3. Environment Check
+
+```bash
+node test-lightning-simple.js
+```
+
+**What it does:**
+
+- Verifies LND environment variables are set
+- Checks if Lightning configuration is complete
+- Provides clear error messages for missing variables
+
+##### 4. Manual Testing
+
+Follow the instructions in `manual-lightning-test.md` for step-by-step manual testing using curl commands.
+
+#### Test Data Requirements
+
+For Lightning integration tests, you need:
+
+- **LND Node**: Running and accessible
+- **Invoice Macaroon**: With invoice permissions
+- **Database**: PostgreSQL running with schema applied
+- **Environment Variables**: All required variables set in `.env`
+
+#### Cleanup Recommendation
+
+You can safely remove these duplicate test files:
+
+```bash
+rm test-lightning-integration.js
+rm simple-lightning-test.js
+rm test-lightning.js
+rm test-purchase-api.js
+rm create-test-provider.js
+```
+
+Keep these essential test files:
+
+- `working-lightning-test.js` - **Main test** that creates provider → service → client → Lightning invoice
+- `generate-real-keys.js` - **Utility** to generate real Bitcoin keys for testing
+- `test-lightning-simple.js` - **Environment check** to verify LND variables are set
+- `manual-lightning-test.md` - **Manual guide** for step-by-step testing

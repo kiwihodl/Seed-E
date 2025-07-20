@@ -1,0 +1,148 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Seed-E Project Status
+
+## 🎯 **Current Status: Phase 1 Complete - Core Platform Ready**
+
+### ✅ **Completed Features**
+
+#### **Real Bitcoin Integration**
+- ✅ **Cryptographic Key Validation**: Real BIP32 xpub validation
+- ✅ **ECDSA Signature Verification**: 64-byte signature validation  
+- ✅ **Fresh Key Generation**: Unique Bitcoin keys generated on demand
+- ✅ **Hashed xpub Storage**: xpubs never stored in plain text for security
+- ✅ **BOLT12 Lightning Offers**: Real Lightning Network payment integration
+
+#### **Provider Management**
+- ✅ **Service Configuration**: Add signing keys with real Bitcoin validation
+- ✅ **Pricing Setup**: Configure backup fees, signature fees, and monthly fees
+- ✅ **Time Delays**: Set custom time delays for signature releases
+- ✅ **Interactive Dashboard**: Click key cards to view full details
+- ✅ **Real-time Validation**: Form validation with comprehensive error handling
+
+#### **Authentication & Security**
+- ✅ **2FA Implementation**: TOTP-based two-factor authentication
+- ✅ **Secure Password Handling**: Encrypted password storage
+- ✅ **Recovery Key System**: Backup authentication methods
+- ✅ **Session Management**: Persistent user sessions
+
+#### **User Experience**
+- ✅ **Dark/Light Mode**: Persistent theme support across all pages
+- ✅ **Responsive Design**: Mobile-friendly interface
+- ✅ **Real-time Feedback**: Comprehensive validation and error messages
+- ✅ **Interactive Elements**: Clickable cards, modals, and visual indicators
+
+#### **Service Purchase System**
+- ✅ **Lightning Network Integration**: Payment processing with Lightning invoices
+- ✅ **Purchase Flow**: One-click service purchase with confirmation
+- ✅ **Global Purchase Tracking**: Once purchased, no one else can buy the same key
+- ✅ **Purchase Status**: Clear visual indicators for available vs purchased services
+- ✅ **Secure Key Handling**: Only hashed xpubs stored in database
+- ✅ **Marketplace Security**: Purchased services disappear from public marketplace
+- ✅ **User-Specific Views**: Providers see all their services, clients see available + purchased
+
+### 🔄 **In Development**
+
+#### **Signature Request System**
+- 🔄 **PSBT Upload**: Client uploads unsigned PSBT
+- 🔄 **Provider Signing**: Provider signs and returns PSBT
+- 🔄 **Time-delayed Release**: Configurable delays for signature releases
+- 🔄 **Payment Integration**: Per-signature Lightning payments
+
+#### **Advanced Lightning Integration**
+- 🔄 **Real Lightning Node**: Replace mock invoices with actual Lightning payments
+- 🔄 **Payment Confirmation**: Webhook-based payment verification
+- 🔄 **Atomic Transactions**: Payment success = immediate purchase activation
+
+### ⏳ **Planned Features**
+
+#### **Phase 2: Provider Reputation & Security**
+- ⏳ **Structured Provider Information**: Security practices, key storage methods
+- ⏳ **Provider Reputation System**: Rating and review system
+- ⏳ **Penalty System**: Automated penalties for misbehavior
+- ⏳ **Advanced PSBT Validation**: Comprehensive transaction verification
+- ⏳ **Provider Whitelisting**: Self-hosted instances can whitelist specific providers
+- ⏳ **Optional Website URLs**: Providers can optionally add website URLs (disabled by default)
+- ⏳ **Custom Provider Lists**: Self-hosted instances can curate their own provider lists
+
+#### **Phase 3: Advanced Features**
+- ⏳ **Multi-provider Support**: Multiple providers per transaction
+- ⏳ **Mobile Application**: React Native mobile app
+- ⏳ **Advanced Analytics**: Transaction monitoring and reporting
+- ⏳ **API Documentation**: Comprehensive API docs
+- ⏳ **Wallet Plugin SDK**: Libraries for wallet integration
+- ⏳ **Self-Hosted Deployment**: Docker containers for easy deployment
+
+## 🚨 **Production Requirements**
+
+### **Critical: Lightning Payment Atomicity**
+- **Current State**: Mock Lightning invoices with "pending payment" status
+- **Production Requirement**: Atomic Lightning payments - either payment succeeds and key is immediately purchased, or payment fails and key remains available
+- **Implementation Needed**: Real Lightning node integration with webhook-based payment confirmation
+- **No "Pending Payment" State**: Should not exist in production
+
+### **Security Enhancements**
+- **Real Lightning Node**: Replace mock payment system
+- **Webhook Security**: Secure payment confirmation endpoints
+- **Rate Limiting**: Prevent abuse of purchase endpoints
+- **Audit Logging**: Complete transaction history
+
+### **Performance & Scalability**
+- **Database Optimization**: Index optimization for large datasets
+- **Caching Layer**: Redis for frequently accessed data
+- **Load Balancing**: Multiple server instances
+- **CDN Integration**: Static asset delivery
+
+## 📊 **Technical Architecture**
+
+### **Frontend**
+- **Next.js 15** with App Router
+- **TypeScript** for type safety
+- **Tailwind CSS** for styling
+- **React Hooks** for state management
+
+### **Backend**
+- **Next.js API Routes** for backend logic
+- **Prisma ORM** for database operations
+- **PostgreSQL** for data persistence
+- **Bitcoin Integration** via bitcoinjs-lib
+
+### **Security**
+- **Hashed xpub Storage**: HMAC-SHA256 with server secret
+- **Global Purchase Tracking**: Once purchased, globally unavailable
+- **Cryptographic Validation**: Real Bitcoin key validation
+- **2FA Protection**: TOTP-based authentication
+
+## 🎯 **Deployment Models**
+
+### **Wallet Plugin Integration**
+- **API-First Design**: Wallets integrate via API endpoints, not UI components
+- **RESTful APIs**: Standard HTTP endpoints for all operations
+- **Authentication**: JWT tokens for wallet integration
+- **Rate Limiting**: Prevent abuse from wallet integrations
+
+### **Self-Hosted Instances**
+- **Docker Deployment**: Easy containerized deployment
+- **Environment Configuration**: Flexible configuration for different deployments
+- **Provider Whitelisting**: Curate specific provider lists
+- **Custom Branding**: Optional customization for self-hosted instances
+- **Start9 Integration**: Ready for Start9 deployment model
+
+## 🎯 **Next Steps**
+
+1. **Build & Test**: Ensure no build issues
+2. **GitHub Push**: Deploy to repository
+3. **Real Lightning Integration**: Replace mock payment system
+4. **Signature Request System**: Implement PSBT upload/signing
+5. **Provider Dashboard**: Complete provider service management
+6. **API Documentation**: Create comprehensive API docs for wallet integration
+7. **Docker Configuration**: Prepare for self-hosted deployment
+8. **Production Deployment**: Deploy to production environment
+
+---
+
+**Last Updated**: July 19, 2025
+**Status**: Phase 1 Complete - Ready for Production Preparation
