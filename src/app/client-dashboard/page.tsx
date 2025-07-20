@@ -22,7 +22,7 @@ interface PurchasedService {
   serviceId: string;
   providerName: string;
   policyType: string;
-  xpubHash: string;
+  xpubKey: string; // Changed from xpubHash to xpubKey
   initialBackupFee: number;
   perSignatureFee: number;
   monthlyFee?: number;
@@ -68,6 +68,12 @@ export default function ClientDashboard() {
   const [selectedPurchasedService, setSelectedPurchasedService] =
     useState<PurchasedService | null>(null);
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [selectedAvailableService, setSelectedAvailableService] =
+    useState<Service | null>(null);
+  const [showAvailableServiceModal, setShowAvailableServiceModal] =
+    useState(false);
+  const [visibleXpubs, setVisibleXpubs] = useState<Set<string>>(new Set());
+  const [copiedXpubs, setCopiedXpubs] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   // Get current theme state from localStorage
@@ -89,6 +95,7 @@ export default function ClientDashboard() {
     setIsDark(dark);
   };
 
+  // Fetch data on component mount
   useEffect(() => {
     // Get username from localStorage or session
     const storedUsername = localStorage.getItem("username");
@@ -104,7 +111,7 @@ export default function ClientDashboard() {
     fetchAvailableServices();
     fetchPurchasedServices();
     fetchRequests();
-  }, []);
+  }, []); // Only run on mount
 
   // Handle clicking outside settings menu
   useEffect(() => {
@@ -122,6 +129,42 @@ export default function ClientDashboard() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showSettings]);
+
+  // Handle clicking outside service modal
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showServiceModal &&
+        !(event.target as Element).closest(".service-modal")
+      ) {
+        setShowServiceModal(false);
+        setSelectedPurchasedService(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showServiceModal]);
+
+  // Handle clicking outside available service modal
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showAvailableServiceModal &&
+        !(event.target as Element).closest(".available-service-modal")
+      ) {
+        setShowAvailableServiceModal(false);
+        setSelectedAvailableService(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showAvailableServiceModal]);
 
   const fetchAvailableServices = async () => {
     try {
@@ -143,7 +186,7 @@ export default function ClientDashboard() {
   const fetchPurchasedServices = async () => {
     try {
       const clientId = localStorage.getItem("userId");
-      console.log("🔍 Fetching purchased services for client ID:", clientId);
+      // console.log("🔍 Fetching purchased services for client ID:", clientId);
 
       if (!clientId) {
         console.log("❌ No client ID found in localStorage");
@@ -156,7 +199,7 @@ export default function ClientDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("✅ Purchased services data:", data);
+        // console.log("✅ Purchased services data:", data);
         setPurchasedServices(data.purchasedServices);
       } else {
         console.error("Failed to fetch purchased services");
@@ -219,7 +262,7 @@ export default function ClientDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("✅ Purchase successful:", data);
+        console.log("✅ Invoice created successfully:", data);
 
         // Set payment data and show modal
         setPaymentData({
@@ -232,9 +275,8 @@ export default function ClientDashboard() {
         setCurrentService(service);
         setShowPaymentModal(true);
 
-        // Refresh the services lists
+        // Only refresh available services (not purchased services yet)
         fetchAvailableServices();
-        fetchPurchasedServices();
       } else {
         const error = await response.json();
         console.error("❌ Purchase failed:", error);
@@ -246,11 +288,21 @@ export default function ClientDashboard() {
     }
   };
 
+  const handleViewServiceDetails = (service: Service) => {
+    setSelectedAvailableService(service);
+    setShowAvailableServiceModal(true);
+  };
+
   const handleClosePaymentModal = async () => {
     if (paymentData) {
       try {
+        console.log(
+          "🛑 Cancelling pending purchase for hash:",
+          paymentData.paymentHash
+        );
+
         // Cancel the pending purchase
-        await fetch("/api/services/cancel-purchase", {
+        const response = await fetch("/api/services/cancel-purchase", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -259,8 +311,16 @@ export default function ClientDashboard() {
             paymentHash: paymentData.paymentHash,
           }),
         });
+
+        if (response.ok) {
+          console.log("✅ Purchase cancelled successfully");
+        } else {
+          console.error("❌ Failed to cancel purchase:", response.status);
+          const errorData = await response.json();
+          console.error("Cancel error details:", errorData);
+        }
       } catch (error) {
-        console.error("Failed to cancel purchase:", error);
+        console.error("❌ Error cancelling purchase:", error);
       }
     }
 
@@ -268,6 +328,73 @@ export default function ClientDashboard() {
     setPaymentData(null);
     setCurrentService(null);
   };
+
+  // Check payment status periodically when modal is open
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    let attempts = 0;
+    const maxAttempts = 100; // 5 minutes (100 * 3 seconds)
+
+    if (showPaymentModal && paymentData) {
+      console.log("🔄 Starting payment confirmation polling...");
+
+      interval = setInterval(async () => {
+        attempts++;
+
+        if (attempts > maxAttempts) {
+          console.log("⏰ Payment confirmation timeout - stopping polling");
+          setShowPaymentModal(false);
+          setPaymentData(null);
+          setCurrentService(null);
+          alert(
+            "Payment confirmation timeout. Please try again or contact support."
+          );
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/services/confirm-payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentHash: paymentData.paymentHash,
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+
+            if (data.confirmed) {
+              // Close the modal
+              setShowPaymentModal(false);
+              setPaymentData(null);
+              setCurrentService(null);
+
+              // Refresh the services lists
+              fetchAvailableServices();
+              fetchPurchasedServices();
+            }
+          } else {
+            console.error(
+              "❌ Payment confirmation API error:",
+              response.status
+            );
+          }
+        } catch (error) {
+          console.error("❌ Failed to check payment status:", error);
+        }
+      }, 3000); // Check every 3 seconds
+    }
+
+    return () => {
+      if (interval) {
+        console.log("🛑 Stopping payment confirmation polling...");
+        clearInterval(interval);
+      }
+    };
+  }, [showPaymentModal, paymentData]);
 
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
@@ -293,6 +420,41 @@ export default function ClientDashboard() {
         return "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200";
       default:
         return "bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200";
+    }
+  };
+
+  const truncateXpub = (xpub: string) => {
+    if (xpub.length <= 12) return xpub;
+    return `${xpub.substring(0, 8)}...${xpub.substring(xpub.length - 4)}`;
+  };
+
+  const toggleXpubVisibility = (serviceId: string) => {
+    const newVisibleXpubs = new Set(visibleXpubs);
+    if (newVisibleXpubs.has(serviceId)) {
+      newVisibleXpubs.delete(serviceId);
+    } else {
+      newVisibleXpubs.add(serviceId);
+    }
+    setVisibleXpubs(newVisibleXpubs);
+  };
+
+  const copyXpubToClipboard = async (xpub: string, serviceId: string) => {
+    try {
+      await navigator.clipboard.writeText(xpub);
+
+      // Show tick icon
+      setCopiedXpubs((prev) => new Set([...prev, serviceId]));
+
+      // Reset tick icon after 2 seconds
+      setTimeout(() => {
+        setCopiedXpubs((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(serviceId);
+          return newSet;
+        });
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy xpub:", error);
     }
   };
 
@@ -456,7 +618,7 @@ export default function ClientDashboard() {
                     key={service.id}
                     className="px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     onClick={() => {
-                      handlePurchaseService(service);
+                      handleViewServiceDetails(service);
                     }}
                   >
                     <div className="flex items-center justify-between">
@@ -651,7 +813,7 @@ export default function ClientDashboard() {
         {/* Service Details Modal */}
         {showServiceModal && selectedPurchasedService && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto service-modal">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Service Details
@@ -806,14 +968,109 @@ export default function ClientDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Extended Public Key Hash (xpub)
+                    Extended Public Key (xpub)
                   </label>
-                  <textarea
-                    value={selectedPurchasedService.xpubHash}
-                    readOnly
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={
+                        visibleXpubs.has(selectedPurchasedService.id)
+                          ? selectedPurchasedService.xpubKey
+                          : truncateXpub(selectedPurchasedService.xpubKey)
+                      }
+                      readOnly
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm pr-20"
+                    />
+                    <div className="absolute top-2 right-2 flex space-x-1">
+                      <button
+                        onClick={() =>
+                          toggleXpubVisibility(selectedPurchasedService.id)
+                        }
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                        title={
+                          visibleXpubs.has(selectedPurchasedService.id)
+                            ? "Hide full xpub"
+                            : "Show full xpub"
+                        }
+                      >
+                        {visibleXpubs.has(selectedPurchasedService.id) ? (
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        onClick={() =>
+                          copyXpubToClipboard(
+                            selectedPurchasedService.xpubKey,
+                            selectedPurchasedService.id
+                          )
+                        }
+                        className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                        title="Copy xpub to clipboard"
+                      >
+                        {copiedXpubs.has(selectedPurchasedService.id) ? (
+                          <svg
+                            className="w-4 h-4 text-green-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {selectedPurchasedService.paymentHash && (
@@ -829,6 +1086,154 @@ export default function ClientDashboard() {
                     />
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Available Service Details Modal */}
+        {showAvailableServiceModal && selectedAvailableService && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto available-service-modal">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Service Details
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowAvailableServiceModal(false);
+                    setSelectedAvailableService(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Provider
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedAvailableService.providerName}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Policy Type
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedAvailableService.policyType}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Initial Backup Fee (sats)
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedAvailableService.initialBackupFee.toLocaleString()}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Per Signature Fee (sats)
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedAvailableService.perSignatureFee.toLocaleString()}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  {selectedAvailableService.monthlyFee && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Monthly Fee (sats)
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedAvailableService.monthlyFee.toLocaleString()}
+                        readOnly
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Time Delay (days)
+                    </label>
+                    <input
+                      type="text"
+                      value={Math.floor(
+                        selectedAvailableService.minTimeDelay / 24
+                      )}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Created
+                    </label>
+                    <input
+                      type="text"
+                      value={formatDate(selectedAvailableService.createdAt)}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowAvailableServiceModal(false);
+                      setSelectedAvailableService(null);
+                    }}
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAvailableServiceModal(false);
+                      setSelectedAvailableService(null);
+                      handlePurchaseService(selectedAvailableService);
+                    }}
+                    className="px-4 py-2 bg-[#FF9500] text-black font-medium rounded hover:bg-[#FF9500]/90 transition-colors"
+                  >
+                    Purchase Service
+                  </button>
+                </div>
               </div>
             </div>
           </div>

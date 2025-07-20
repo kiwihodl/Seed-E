@@ -82,7 +82,10 @@ model Service {
   annualFee BigInt?
 
   // The BOLT12 offer string for receiving payments.
-  bolt12Offer String
+  bolt12Offer String?
+
+  // The Lightning address for receiving payments (e.g., provider@voltage.com).
+  lightningAddress String?
 
   // A flag to show if the service is active and listed.
   isActive Boolean @default(true)
@@ -135,6 +138,13 @@ model ServicePurchase {
 
   // The payment hash of the invoice used to purchase the service.
   paymentHash String? @unique
+
+  // Lightning address and amount for LNURL verification
+  lightningAddress String?
+  paymentAmount    BigInt?
+
+  // LNURL verify URL for payment verification
+  verifyUrl String?
 
   // Tracks the expiration date of the client's access to this service.
   expiresAt DateTime?

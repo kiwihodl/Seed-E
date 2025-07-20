@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       expiresAt: purchase.expiresAt?.toISOString(),
       isActive: purchase.isActive,
       paymentHash: purchase.paymentHash,
+      xpubKey: purchase.service.encryptedXpub, // Use the actual xpub key instead of hash
     }));
 
     return NextResponse.json({

@@ -3,10 +3,13 @@ import { PrismaClient } from "@prisma/client";
 import * as bitcoin from "bitcoinjs-lib";
 import BIP32Factory from "bip32";
 import * as ecc from "tiny-secp256k1";
+import ECPairFactory from "ecpair";
 import { hashXpub } from "@/lib/xpub-hash";
+import { lightningService } from "@/lib/lightning";
 
 bitcoin.initEccLib(ecc);
 const bip32 = BIP32Factory(ecc);
+const ECPair = ECPairFactory(ecc);
 
 const prisma = new PrismaClient();
 
@@ -51,21 +54,76 @@ const validateSignature = (
   }
 };
 
-const validateBolt12Offer = (
-  offer: string
+const validateSignatureFromXpub = (
+  xpub: string,
+  signature: string,
+  message: string
 ): { isValid: boolean; error?: string } => {
   try {
-    // Basic BOLT12 offer validation
-    if (!offer.startsWith("lno1")) {
-      return { isValid: false, error: "BOLT12 offer must start with 'lno1'" };
+    // Parse the xpub
+    const node = bip32.fromBase58(xpub);
+
+    // Create the message hash
+    const messageHash = bitcoin.crypto.sha256(Buffer.from(message, "utf8"));
+
+    // Convert signature from hex to buffer
+    const signatureBuffer = Buffer.from(signature, "hex");
+
+    // Verify the signature using the xpub's public key
+    const isValid = ECPair.fromPublicKey(node.publicKey).verify(
+      messageHash,
+      signatureBuffer
+    );
+
+    if (!isValid) {
+      return {
+        isValid: false,
+        error:
+          "Signature verification failed - signature does not match the provided xpub",
+      };
     }
 
-    // Additional validation could be added here for BOLT12 format
+    return { isValid: true };
+  } catch (error) {
+    return { isValid: false, error: "Failed to verify signature" };
+  }
+};
+
+const validateLightningAddress = (
+  address: string
+): { isValid: boolean; error?: string } => {
+  try {
+    // Basic Lightning address validation
+    if (!address.includes("@")) {
+      return {
+        isValid: false,
+        error: "Lightning address must contain '@' (e.g., user@getalby.com)",
+      };
+    }
+
+    const [username, domain] = address.split("@");
+
+    if (!username || !domain) {
+      return { isValid: false, error: "Invalid Lightning address format" };
+    }
+
+    if (username.length < 1) {
+      return { isValid: false, error: "Username part cannot be empty" };
+    }
+
+    if (domain.length < 3) {
+      return {
+        isValid: false,
+        error: "Domain part must be at least 3 characters",
+      };
+    }
+
+    // Additional validation could be added here for specific domains
     // For now, we'll do basic format checking
 
     return { isValid: true };
   } catch {
-    return { isValid: false, error: "Invalid BOLT12 offer format" };
+    return { isValid: false, error: "Invalid Lightning address format" };
   }
 };
 
@@ -116,7 +174,7 @@ export async function GET(request: NextRequest) {
       perSignatureFee: Number(policy.perSignatureFee),
       monthlyFee: policy.monthlyFee ? Number(policy.monthlyFee) : undefined,
       minTimeDelay: policy.minTimeDelay,
-      bolt12Offer: policy.bolt12Offer,
+      lightningAddress: policy.lightningAddress, // Changed from bolt12Offer
       createdAt: policy.createdAt.toISOString(),
       isPurchased: policy.isPurchased,
       servicePurchases: policy.servicePurchases.map((purchase) => ({
@@ -150,7 +208,7 @@ export async function POST(request: NextRequest) {
       perSignatureFee,
       monthlyFee,
       minTimeDelayDays,
-      bolt12Offer,
+      lightningAddress, // Changed from bolt12Offer
     } = await request.json();
 
     console.log("Received request data:", {
@@ -162,7 +220,7 @@ export async function POST(request: NextRequest) {
       perSignatureFee,
       monthlyFee,
       minTimeDelayDays,
-      bolt12Offer: bolt12Offer?.substring(0, 20) + "...",
+      lightningAddress: lightningAddress?.substring(0, 20) + "...", // Changed from bolt12Offer
     });
 
     // Validate required fields
@@ -174,7 +232,7 @@ export async function POST(request: NextRequest) {
       !initialBackupFee ||
       !perSignatureFee ||
       !minTimeDelayDays ||
-      !bolt12Offer
+      !lightningAddress // Changed from bolt12Offer
     ) {
       return NextResponse.json(
         { error: "All required fields must be provided" },
@@ -200,11 +258,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Real BOLT12 offer validation
-    const bolt12Validation = validateBolt12Offer(bolt12Offer);
-    if (!bolt12Validation.isValid) {
+    // Validate that the signature comes from the xpub's private key
+    const message = "Control signature for Seed-E service";
+    const signatureFromXpubValidation = validateSignatureFromXpub(
+      xpub,
+      controlSignature,
+      message
+    );
+    if (!signatureFromXpubValidation.isValid) {
       return NextResponse.json(
-        { error: bolt12Validation.error },
+        { error: signatureFromXpubValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Real Lightning address validation
+    const lightningValidation = validateLightningAddress(lightningAddress); // Changed from bolt12Offer
+    if (!lightningValidation.isValid) {
+      return NextResponse.json(
+        { error: lightningValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Check if Lightning address supports LNURL verify
+    try {
+      const validationResult = await lightningService.validateLightningAddress(
+        lightningAddress
+      );
+      if (!validationResult.isValid) {
+        return NextResponse.json(
+          { error: validationResult.error },
+          { status: 400 }
+        );
+      }
+
+      if (!validationResult.supportsLnurlVerify) {
+        return NextResponse.json(
+          {
+            error:
+              "This Lightning address doesn't support LNURL verify. Please use a Lightning address from a provider that supports LNURL verify (e.g., Alby, Voltage, etc.).",
+          },
+          { status: 400 }
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Error validating Lightning address LNURL verify support:",
+        error
+      );
+      return NextResponse.json(
+        {
+          error:
+            "Failed to validate Lightning address LNURL verify support. Please try again.",
+        },
         { status: 400 }
       );
     }
@@ -259,7 +366,7 @@ export async function POST(request: NextRequest) {
         perSignatureFee: BigInt(perSignatureFee),
         monthlyFee: monthlyFee ? BigInt(monthlyFee) : null,
         minTimeDelay: timeDelayDays * 24, // Convert days to hours for storage
-        bolt12Offer: bolt12Offer.trim(),
+        lightningAddress: lightningAddress.trim(), // Store the lightning address
         isActive: true,
         isPurchased: false,
       },
@@ -282,7 +389,7 @@ export async function POST(request: NextRequest) {
             ? Number(newService.monthlyFee)
             : undefined,
           minTimeDelay: newService.minTimeDelay,
-          bolt12Offer: newService.bolt12Offer,
+          lightningAddress: newService.lightningAddress, // Return lightning address
           createdAt: newService.createdAt,
         },
       },
@@ -290,6 +397,29 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Failed to create service:", error);
+
+    // Check if it's a duplicate xpub error
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002" &&
+      "meta" in error &&
+      error.meta &&
+      typeof error.meta === "object" &&
+      "target" in error.meta &&
+      Array.isArray(error.meta.target) &&
+      error.meta.target.includes("xpubHash")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This xpub is already registered. Please use a different xpub.",
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Failed to create service" },
       { status: 500 }

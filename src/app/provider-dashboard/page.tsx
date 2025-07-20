@@ -24,7 +24,7 @@ interface ServicePolicy {
   perSignatureFee: number;
   monthlyFee?: number;
   minTimeDelay: number;
-  bolt12Offer: string;
+  lightningAddress: string; // Changed from bolt12Offer
   createdAt: string;
   isPurchased: boolean;
   servicePurchases?: {
@@ -55,7 +55,7 @@ export default function ProviderDashboard() {
     perSignatureFee: "",
     monthlyFee: "",
     minTimeDelayDays: "",
-    bolt12Offer: "",
+    lightningAddress: "", // Changed from bolt12Offer
   });
   const [addingKey, setAddingKey] = useState(false);
   const [username, setUsername] = useState("");
@@ -64,6 +64,11 @@ export default function ProviderDashboard() {
   const [timeDelayError, setTimeDelayError] = useState("");
   const [xpubError, setXpubError] = useState("");
   const [xpubDuplicateError, setXpubDuplicateError] = useState("");
+  const [lightningAddressError, setLightningAddressError] = useState(""); // Add Lightning address error state
+  const [lightningAddressValidating, setLightningAddressValidating] =
+    useState(false); // Add validation state
+  const [signatureError, setSignatureError] = useState(""); // Add signature error state
+  const [signatureValidating, setSignatureValidating] = useState(false); // Add signature validation state
   const [selectedKeyDetails, setSelectedKeyDetails] =
     useState<ServicePolicy | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -71,6 +76,15 @@ export default function ProviderDashboard() {
 
   // Debounce timer for time delay validation
   const [timeDelayTimer, setTimeDelayTimer] = useState<NodeJS.Timeout | null>(
+    null
+  );
+
+  // Debounce timer for Lightning address validation
+  const [lightningAddressTimer, setLightningAddressTimer] =
+    useState<NodeJS.Timeout | null>(null);
+
+  // Debounce timer for signature validation
+  const [signatureTimer, setSignatureTimer] = useState<NodeJS.Timeout | null>(
     null
   );
 
@@ -130,44 +144,252 @@ export default function ProviderDashboard() {
     }
   };
 
-  // Validate xpub format
   const validateXpub = (value: string) => {
+    // Basic xpub validation
+    if (!value.startsWith("xpub") && !value.startsWith("zpub")) {
+      setXpubError("Xpub must start with 'xpub' or 'zpub'");
+      return false;
+    }
+    if (value.length < 100) {
+      setXpubError("Xpub appears to be too short");
+      return false;
+    }
+    setXpubError("");
+    return true;
+  };
+
+  const handleLightningAddressChange = (value: string) => {
+    // Clear any existing timer
+    if (lightningAddressTimer) {
+      clearTimeout(lightningAddressTimer);
+    }
+
+    // Update the form
+    setAddKeyForm({
+      ...addKeyForm,
+      lightningAddress: value,
+    });
+
+    // Clear error if field is empty
+    if (!value) {
+      setLightningAddressError("");
+      setLightningAddressValidating(false);
+      return;
+    }
+
+    // Basic format validation
+    if (!value.includes("@")) {
+      setLightningAddressError(
+        "Lightning address must contain '@' (e.g., user@getalby.com)"
+      );
+      setLightningAddressValidating(false);
+      return;
+    }
+
+    // Set validating state
+    setLightningAddressValidating(true);
+    setLightningAddressError("");
+
+    // Debounce the validation - faster for pasting
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/lightning/validate-address", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ lightningAddress: value }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.supportsLnurlVerify) {
+            setLightningAddressError("");
+          } else {
+            setLightningAddressError(
+              "This Lightning address doesn't support LNURL verify. Please use a Lightning address from a provider that supports LNURL verify (e.g., Alby, Voltage, etc.)."
+            );
+          }
+        } else {
+          setLightningAddressError(
+            "Failed to validate Lightning address. Please try again."
+          );
+        }
+      } catch (error) {
+        setLightningAddressError(
+          "Failed to validate Lightning address. Please try again."
+        );
+      }
+      setLightningAddressValidating(false);
+    }, 100); // Reduced from 300ms to 100ms for faster validation
+
+    setLightningAddressTimer(timer);
+  };
+
+  const handleXpubChange = (value: string) => {
+    // Update the form
+    setAddKeyForm({
+      ...addKeyForm,
+      xpub: value,
+    });
+
+    // Clear error if field is empty
     if (!value) {
       setXpubError("");
       setXpubDuplicateError("");
       return;
     }
-    if (!value.startsWith("xpub") && !value.startsWith("zpub")) {
-      setXpubError("Extended public key must start with 'xpub' or 'zpub'");
-      setXpubDuplicateError("");
-    } else {
-      setXpubError("");
-      // Check for duplicates
-      const isDuplicate = policies.some((policy) => policy.xpub === value);
-      if (isDuplicate) {
-        setXpubDuplicateError("This extended public key is already in use");
-      } else {
-        setXpubDuplicateError("");
-      }
+
+    // Validate xpub format
+    validateXpub(value);
+
+    // Check for duplicates (debounced)
+    if (value.length > 10) {
+      setTimeout(async () => {
+        try {
+          const response = await fetch(
+            `/api/providers/check-xpub?xpub=${encodeURIComponent(
+              value
+            )}&providerId=${localStorage.getItem("userId")}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data.isDuplicate) {
+              setXpubDuplicateError("This xpub is already registered");
+            } else {
+              setXpubDuplicateError("");
+            }
+          }
+        } catch (error) {
+          console.error("Error checking xpub duplicate:", error);
+        }
+      }, 500);
     }
+  };
+
+  const handleSignatureChange = (value: string) => {
+    // Clear any existing timer
+    if (signatureTimer) {
+      clearTimeout(signatureTimer);
+    }
+
+    // Update the form
+    setAddKeyForm({
+      ...addKeyForm,
+      controlSignature: value,
+    });
+
+    // Clear error if field is empty
+    if (!value) {
+      setSignatureError("");
+      setSignatureValidating(false);
+      return;
+    }
+
+    // Basic signature format validation
+    if (value.length !== 128) {
+      setSignatureError("Signature must be 64 bytes (128 hex characters)");
+      setSignatureValidating(false);
+      return;
+    }
+
+    if (!/^[0-9a-fA-F]{128}$/.test(value)) {
+      setSignatureError("Signature must be valid hex format");
+      setSignatureValidating(false);
+      return;
+    }
+
+    // Set validating state
+    setSignatureValidating(true);
+    setSignatureError("");
+
+    // Debounce the backend validation
+    const timer = setTimeout(async () => {
+      try {
+        // Make sure we have both xpub and signature
+        if (!addKeyForm.xpub) {
+          setSignatureError("Xpub is required for signature validation");
+          setSignatureValidating(false);
+          return;
+        }
+
+        console.log("🔍 Validating signature:", {
+          xpub: addKeyForm.xpub.substring(0, 20) + "...",
+          signature: value.substring(0, 20) + "...",
+        });
+
+        const response = await fetch("/api/providers/validate-signature", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            xpub: addKeyForm.xpub,
+            signature: value,
+            message: "Control signature for Seed-E service",
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("✅ Signature validation result:", data);
+          if (data.isValid) {
+            console.log("🎯 Clearing signature error - validation successful");
+            setSignatureError("");
+          } else {
+            console.log("❌ Setting signature error:", data.error);
+            setSignatureError(data.error || "Signature verification failed");
+          }
+        } else {
+          console.log("❌ Signature validation failed");
+          setSignatureError("Failed to validate signature. Please try again.");
+        }
+      } catch (error) {
+        console.error("❌ Signature validation error:", error);
+        setSignatureError("Failed to validate signature. Please try again.");
+      }
+      setSignatureValidating(false);
+    }, 300); // Wait 300ms after user stops typing
+
+    setSignatureTimer(timer);
   };
 
   // Check if form is valid for submission
   const isFormValid = () => {
-    return (
+    const isValid =
       addKeyForm.policyType &&
       addKeyForm.xpub &&
       addKeyForm.controlSignature &&
       addKeyForm.initialBackupFee &&
       addKeyForm.perSignatureFee &&
       addKeyForm.minTimeDelayDays &&
-      addKeyForm.bolt12Offer &&
+      addKeyForm.lightningAddress &&
       !xpubError &&
       !xpubDuplicateError &&
+      !lightningAddressError &&
+      !signatureError &&
       !timeDelayError &&
-      parseInt(addKeyForm.minTimeDelayDays) >= 7 &&
-      parseInt(addKeyForm.minTimeDelayDays) <= 365
-    );
+      !lightningAddressValidating && // Don't allow submission while validating
+      !signatureValidating; // Don't allow submission while validating signature
+
+    console.log("🔍 Form validation state:", {
+      hasPolicyType: !!addKeyForm.policyType,
+      hasXpub: !!addKeyForm.xpub,
+      hasSignature: !!addKeyForm.controlSignature,
+      hasFees: !!(addKeyForm.initialBackupFee && addKeyForm.perSignatureFee),
+      hasTimeDelay: !!addKeyForm.minTimeDelayDays,
+      hasLightningAddress: !!addKeyForm.lightningAddress,
+      xpubError: !!xpubError,
+      xpubDuplicateError: !!xpubDuplicateError,
+      lightningAddressError: !!lightningAddressError,
+      signatureError: !!signatureError,
+      timeDelayError: !!timeDelayError,
+      lightningAddressValidating: !!lightningAddressValidating,
+      signatureValidating: !!signatureValidating,
+      isValid,
+    });
+
+    return isValid;
   };
 
   // Handle time delay change with debounce
@@ -297,6 +519,12 @@ export default function ProviderDashboard() {
     setAddingKey(true);
     setError("");
 
+    // Pre-submission validation - prevent submission if there are field errors
+    if (!isFormValid()) {
+      setAddingKey(false);
+      return;
+    }
+
     // Validate xpub format before submission
     validateXpub(addKeyForm.xpub);
     if (xpubError) {
@@ -333,7 +561,7 @@ export default function ProviderDashboard() {
             ? parseInt(parseNumberFromCommas(addKeyForm.monthlyFee))
             : null,
           minTimeDelayDays: parseInt(addKeyForm.minTimeDelayDays),
-          bolt12Offer: addKeyForm.bolt12Offer.trim(),
+          lightningAddress: addKeyForm.lightningAddress.trim(),
         }),
       });
 
@@ -347,16 +575,25 @@ export default function ProviderDashboard() {
           perSignatureFee: "",
           monthlyFee: "",
           minTimeDelayDays: "",
-          bolt12Offer: "",
+          lightningAddress: "",
         });
         setTimeDelayError("");
         setXpubError("");
         setXpubDuplicateError("");
+        setLightningAddressError("");
+        setLightningAddressValidating(false);
         // Refresh policies
         fetchPolicies();
       } else {
         const data = await response.json();
-        setError(data.error || "Failed to add key");
+        // Check if it's a Lightning address validation error and set field-specific error
+        if (data.error && data.error.includes("LNURL verify")) {
+          setLightningAddressError(data.error);
+        } else if (data.error && data.error.includes("signature")) {
+          setSignatureError(data.error);
+        } else {
+          setError(data.error || "Failed to add key");
+        }
       }
     } catch {
       setError("Network error. Please try again.");
@@ -742,10 +979,7 @@ export default function ProviderDashboard() {
                   <input
                     type="text"
                     value={addKeyForm.xpub}
-                    onChange={(e) => {
-                      setAddKeyForm({ ...addKeyForm, xpub: e.target.value });
-                      validateXpub(e.target.value);
-                    }}
+                    onChange={(e) => handleXpubChange(e.target.value)}
                     className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
                     placeholder="xpub..."
                     required
@@ -758,7 +992,7 @@ export default function ProviderDashboard() {
                       try {
                         const text = await navigator.clipboard.readText();
                         setAddKeyForm({ ...addKeyForm, xpub: text });
-                        validateXpub(text);
+                        handleXpubChange(text);
                       } catch (err) {
                         console.error("Failed to read clipboard:", err);
                       }
@@ -804,13 +1038,12 @@ export default function ProviderDashboard() {
                 <div className="relative">
                   <textarea
                     value={addKeyForm.controlSignature}
-                    onChange={(e) =>
-                      setAddKeyForm({
-                        ...addKeyForm,
-                        controlSignature: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                    onChange={(e) => handleSignatureChange(e.target.value)}
+                    className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                      signatureError
+                        ? "border-red-500 dark:border-red-400"
+                        : "border-gray-300 dark:border-gray-600"
+                    }`}
                     rows={4}
                     placeholder="Paste the control signature here..."
                     required
@@ -821,10 +1054,7 @@ export default function ProviderDashboard() {
                     onClick={async () => {
                       try {
                         const text = await navigator.clipboard.readText();
-                        setAddKeyForm({
-                          ...addKeyForm,
-                          controlSignature: text,
-                        });
+                        handleSignatureChange(text);
                       } catch (err) {
                         console.error("Failed to read clipboard:", err);
                       }
@@ -847,6 +1077,16 @@ export default function ProviderDashboard() {
                     </svg>
                   </button>
                 </div>
+                {signatureError && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                    {signatureError}
+                  </p>
+                )}
+                {signatureValidating && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Validating signature...
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Click the paste icon to paste from clipboard.
                 </p>
@@ -854,20 +1094,21 @@ export default function ProviderDashboard() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  BOLT12 Offer *
+                  Lightning Address *
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={addKeyForm.bolt12Offer}
+                    value={addKeyForm.lightningAddress}
                     onChange={(e) =>
-                      setAddKeyForm({
-                        ...addKeyForm,
-                        bolt12Offer: e.target.value,
-                      })
+                      handleLightningAddressChange(e.target.value)
                     }
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="lno1..."
+                    className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                      lightningAddressError
+                        ? "border-red-500 dark:border-red-400"
+                        : "border-gray-300 dark:border-gray-600"
+                    }`}
+                    placeholder="user@getalby.com"
                     required
                     readOnly
                   />
@@ -876,7 +1117,7 @@ export default function ProviderDashboard() {
                     onClick={async () => {
                       try {
                         const text = await navigator.clipboard.readText();
-                        setAddKeyForm({ ...addKeyForm, bolt12Offer: text });
+                        handleLightningAddressChange(text);
                       } catch (err) {
                         console.error("Failed to read clipboard:", err);
                       }
@@ -899,9 +1140,24 @@ export default function ProviderDashboard() {
                     </svg>
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  BOLT12 offer must be pasted directly.
-                </p>
+                {lightningAddressError && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                    {lightningAddressError}
+                  </p>
+                )}
+                {lightningAddressValidating && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Validating...
+                  </p>
+                )}
+                {!lightningAddressError &&
+                  !lightningAddressValidating &&
+                  addKeyForm.lightningAddress && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Recommended providers: Alby (@getalby.com), Voltage
+                      (@voltage.com), or any provider that supports LNURL verify
+                    </p>
+                  )}
               </div>
 
               <div className="flex justify-end space-x-3">
@@ -918,11 +1174,18 @@ export default function ProviderDashboard() {
                       perSignatureFee: "",
                       monthlyFee: "",
                       minTimeDelayDays: "",
-                      bolt12Offer: "",
+                      lightningAddress: "",
                     });
                     setTimeDelayError("");
                     setXpubError("");
                     setXpubDuplicateError("");
+                    setLightningAddressError("");
+                    setSignatureError("");
+                    setLightningAddressValidating(false);
+                    if (lightningAddressTimer) {
+                      clearTimeout(lightningAddressTimer);
+                      setLightningAddressTimer(null);
+                    }
                   }}
                 >
                   Clear Form
@@ -1268,10 +1531,10 @@ export default function ProviderDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    BOLT12 Offer
+                    Lightning Address
                   </label>
                   <textarea
-                    value={selectedKeyDetails.bolt12Offer}
+                    value={selectedKeyDetails.lightningAddress}
                     readOnly
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"

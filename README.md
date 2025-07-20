@@ -2,7 +2,7 @@
 
 A non-custodial directory for third-party Bitcoin signing services, designed to be integrated directly into wallets or self hosted as your own instance.
 
----
+## 🌟 Overview
 
 ## The Problem (Why Seed-E is Needed)
 
@@ -18,7 +18,7 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 
 ### Core Principles
 
-- **Absolutely Non-Custodial:** We never touch clients or providers funds. All payments are peer-to-peer over the Lightning Network using Bolt12.
+- **Absolutely Non-Custodial:** We never touch clients or providers funds. All payments are peer-to-peer over the Lightning Network using Lightning addresses with LNURL verify support.
 - **Privacy:** Both providers and clients get a master key, there is no emails, no KYC and all xpubs / zpubs shared are hashed and stored in the DB to minimize key reuse. Even if the DB was breached, all that they would see is usernames and hashes. Have fun with your Bitcoin!
 - **Platform Neutrality:** The default provider list is randomized on every load. We do not play favorites. There is no "top spot" to pay for.
 - **Sovereignty:** The client is in control. They filter the list based on objective, verifiable data (cost, key type, providers tenure) and make their own informed choice.
@@ -32,10 +32,10 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 ### **Real Bitcoin Integration**
 
 - ✅ **Cryptographic Key Validation**: Real BIP32 xpub validation
-- ✅ **ECDSA Signature Verification**: 64-byte signature validation
+- ✅ **ECDSA Signature Verification**: 64-byte signature validation with real-time verification against xpubs
 - ✅ **Fresh Key Generation**: Unique Bitcoin keys generated on demand
 - ✅ **Hashed xpub Storage**: xpubs never stored in plain text for security
-- ✅ **BOLT12 Lightning Offers**: Real Lightning Network payment integration
+- ✅ **Lightning Address Integration**: Real Lightning Network payment integration with LNURL verify support
 
 ### **Provider Management**
 
@@ -44,6 +44,7 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 - ✅ **Time Delays**: Set custom time delays for signature releases
 - ✅ **Interactive Dashboard**: Click key cards to view full details
 - ✅ **Real-time Validation**: Form validation with comprehensive error handling
+- ✅ **Signature Verification**: Real-time signature validation against xpubs before key addition
 
 ### **Authentication & Security**
 
@@ -61,7 +62,7 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 
 ### **Service Purchase System**
 
-- ✅ **Lightning Network Integration**: Payment processing with Lightning invoices
+- ✅ **Lightning Network Integration**: Payment processing with Lightning addresses and LNURL verify
 - ✅ **Purchase Flow**: One-click service purchase with confirmation
 - ✅ **Global Purchase Tracking**: Once purchased, no one else can buy the same key
 - ✅ **Purchase Status**: Clear visual indicators for available vs purchased services
@@ -84,6 +85,8 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 - `POST /api/providers/policies` - Create new service
 - `GET /api/providers/signature-requests` - List pending requests
 - `POST /api/providers/signature-requests` - Submit signed PSBT
+- `POST /api/providers/validate-signature` - Real-time signature validation
+- `POST /api/providers/check-xpub` - Xpub duplicate checking
 
 ### Client Services
 
@@ -91,11 +94,13 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 - `POST /api/services/purchase` - Purchase a service
 - `GET /api/clients/purchased-services` - List client's purchased services
 
+### Lightning Integration
+
+- `POST /api/lightning/validate-address` - Lightning address validation with LNURL verify support
+
 ### Test Data Generation
 
 - `GET /api/generate-test-data` - Generate fresh Bitcoin keys and signatures
-
-> **🚨 Production Requirement**: Current implementation uses mock Lightning invoices with "pending payment" status. For production, Lightning payments must be atomic - either payment succeeds and key is immediately purchased, or payment fails and key remains available. No "pending payment" state should exist in production.
 
 ## 🔒 **Critical Security Information**
 
@@ -104,6 +109,14 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 **No database contains plain text xpubs.** All extended public keys are hashed using HMAC-SHA256 with a server secret before storage. Even if the database is compromised, the actual xpubs remain secure. Only hashed values are stored and transmitted.
 
 **⚠️ Ecosystem Limitation**: The hashed xpub system only prevents key reuse **within our platform's ecosystem**. Providers could still use the same xpub in other services outside our platform. Clients must trust that providers are not reusing keys elsewhere. We can only enforce good key management within our ecosystem - the broader Bitcoin ecosystem requires trust and reputation.
+
+### **Signature Verification**
+
+**Real-time signature validation ensures xpub ownership.** Before a provider can add a key, they must provide a cryptographic signature that proves they control the private key corresponding to the xpub. This signature is verified in real-time using the ECPair library and bitcoinjs-lib, ensuring only legitimate key owners can create services.
+
+### **Lightning Address Validation**
+
+**LNURL verify support is required for payment confirmation.** Providers must use Lightning addresses that support LNURL verify (e.g., Alby, Voltage, LNbits) to ensure reliable payment confirmation and prevent payment issues for clients.
 
 ### **Master Key Requirements**
 
@@ -123,10 +136,10 @@ Our core mission is to facilitate a connection by verifying one thing and one th
 - **Frontend**: Next.js 15, TypeScript, Tailwind CSS
 - **Backend**: Next.js API routes, Prisma ORM
 - **Database**: PostgreSQL with Docker
-- **Bitcoin**: bitcoinjs-lib, bip32, tiny-secp256k1
+- **Bitcoin**: bitcoinjs-lib, bip32, tiny-secp256k1, ecpair
 - **Authentication**: TOTP 2FA with speakeasy
-- **Payments**: Lightning Network (BOLT12)
-- **Security**: HMAC-SHA256 hashing for xpub storage
+- **Payments**: Lightning Network (Lightning addresses with LNURL verify)
+- **Security**: HMAC-SHA256 hashing for xpub storage, real-time signature verification
 
 ## 🚀 Quick Start
 
@@ -146,6 +159,10 @@ DATABASE_URL="postgresql://username:password@localhost:5433/seed-e-db"
 
 # Security (REQUIRED - Keep this private and unique to your deployment)
 XPUB_HASH_SECRET="your-strong-secret-key-here"
+
+# Lightning Network (LND) Configuration
+LND_REST_URL="http://your-lnd-rest-url:8080"
+LND_INVOICE_MACAROON="your-lnd-invoice-macaroon-here"
 
 # Optional: Production database
 POSTGRES_PRISMA_URL="your-production-database-url"
@@ -212,19 +229,21 @@ POSTGRES_URL_NON_POOLING="your-production-direct-url"
 ### ✅ **Completed Features**
 
 - Real Bitcoin key validation and generation
-- Cryptographic signature verification
-- Interactive provider dashboard
+- Cryptographic signature verification with real-time validation against xpubs
+- Interactive provider dashboard with Lightning address integration
 - **Client registration with real-time validation**
 - **Client dashboard with service browsing**
 - **Cross-user-type username uniqueness**
 - **Enhanced form validation and UX**
-- Comprehensive form validation
+- Comprehensive form validation with Lightning address validation
 - Dark/light mode support
 - Database integration with Prisma
+- **Lightning address validation with LNURL verify support**
+- **Real-time signature verification before key addition**
 
 ### 🔄 **In Development**
 
-- **Service purchase flow with Lightning payments**
+- **Service purchase flow with Lightning payments using Lightning addresses**
 - **Signature request system with PSBT validation**
 - Key derivation and management
 - Service discovery protocol
@@ -254,11 +273,13 @@ POSTGRES_URL_NON_POOLING="your-production-direct-url"
 
 - **Real Cryptographic Validation**: All Bitcoin keys and signatures are cryptographically verified
 - **Hashed xpub Storage**: xpubs never stored in plain text, only HMAC-SHA256 hashes
+- **Real-time Signature Verification**: Signatures are verified against xpubs before key addition
 - **Global Purchase Tracking**: Once a key is purchased, no one else can buy it
 - **Time-based Security**: Configurable delays for signature releases
 - **2FA Protection**: Two-factor authentication for all accounts
 - **Secure Storage**: Encrypted sensitive data storage
 - **No Malicious URL Attack Vectors**: Structured data only, no custom URLs
+- **Lightning Address Validation**: LNURL verify support checking for reliable payments
 
 ## 🎨 UI/UX Features
 
@@ -276,7 +297,7 @@ POSTGRES_URL_NON_POOLING="your-production-direct-url"
 2.  **Filter & Sort:** The client is shown a **randomized** list of providers. They can filter the list and also apply a sort order:
     - **Filters:** Key Policy Type, Cost (Backup, Signature, or Subscripton - Monthly / Annualy), Provider Since (registration date).
     - **Sort Options:** Default (Random), Fewest Penalties, Longest Time Delay.
-3.  **Pay:** The client selects a provider and is presented with a Lightning invoice. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days or forever but with a higher signing fee and / or intial fee).
+3.  **Pay:** The client selects a provider and is presented with a Lightning payment using the provider's Lightning address. They pay the initial backup fee. This grants them access for a set period (e.g., 30 days or forever but with a higher signing fee and / or intial fee).
 4.  **Receive:** Upon successful payment, the provider's verified `xpub` is immediately delivered to the clients dashboard for inclusion in their multisig configuration.
 5.  **Subscribe (Optional):** If the provider requires a monthly fee, the client can authorize a recurring payment via Nostr Wallet Connect (NIP-47) to maintain access.
 6.  **Request Signature:** When a signature is needed, the client authenticates and submits their PSBT without signing it first. The platform records the submission time and calculates the `unlocksAt` date based on the provider's specified delay forementioned in the purchase details.
@@ -291,8 +312,8 @@ POSTGRES_URL_NON_POOLING="your-production-direct-url"
     - The key's policy type.
     - **Time-Delay Options:** The provider must set a minimum time delay (default 7 days) before a signed PSBT is returned to the client.
     - Fees: Initial backup, per-signature, and an optional monthly subscription fee.
-    - A **BOLT12 Offer** (`lno...`) for receiving payments.
-3.  **Prove Control:** To be listed, the provider must sign a message with the private key corresponding to the `xpub` they provided. Our backend verifies this signature.
+    - A **Lightning Address** (e.g., `username@getalby.com`) that supports LNURL verify for receiving payments.
+3.  **Prove Control:** To be listed, the provider must sign a message with the private key corresponding to the `xpub` they provided. Our backend verifies this signature in real-time before allowing the key to be added.
 4.  **Handle Requests:** When a client requests a signature, the provider receives a notification. They must upload the signed PSBT before the signing window expires to avoid a penalty.
 
 ---
@@ -325,14 +346,14 @@ This section is for those interested in the underlying architecture.
 
 The entire payment architecture is designed to be non-custodial, with our service acting as a "proof-of-payment oracle."
 
-- **BOLT12 is Key:** Providers give us a static BOLT12 Offer, not a one-time invoice. This offer contains their node's identity and payment parameters.
-- **Non-Custodial Invoice Generation:** When a client wants to pay, our backend does **not** generate an invoice for its own node. Instead, it uses the provider's BOLT12 offer to request a unique, payable invoice _on behalf of the provider_. The destination in the resulting `lnbc...` invoice is the provider's node.
-- **Proof of Payment:** The payment flows directly from the client to the provider. Our backend node receives the `invoice_settled` webhook from its node software (e.g., LND, Core Lightning) the instant the payment succeeds. This is our verifiable trigger for all state changes, whether it's releasing an `xpub`, authorizing a signature request, or extending a monthly subscription.
-- **Node Infrastructure:** This requires a dedicated, always-on backend Lightning node. A service like **Voltage**, API-controllable node that can handle the programmatic invoice requests and webhook listeners will be required, for testing we are using a newly spun up node. It can also be configured to request recurring payments using standards like Nostr Wallet Connect (NIP-47), this will start with my spare node, to iterate quickly and get it ready for production.
+- **Lightning Addresses with LNURL Verify are Key:** Providers give us a Lightning address (e.g., `username@getalby.com`) that supports LNURL verify, not a one-time invoice. This address contains their payment parameters and enables reliable payment confirmation.
+- **Non-Custodial Payment Processing:** When a client wants to pay, our backend validates the Lightning address supports LNURL verify and processes the payment directly to the provider's Lightning address. The payment flows directly from the client to the provider.
+- **Proof of Payment:** The payment confirmation is verified through LNURL verify support, ensuring reliable payment confirmation. This is our verifiable trigger for all state changes, whether it's releasing an `xpub`, authorizing a signature request, or extending a monthly subscription.
+- **Node Infrastructure:** This requires a dedicated, always-on backend Lightning node. A service like **Voltage**, API-controllable node that can handle the programmatic payment requests and webhook listeners will be required, for testing we are using a newly spun up node. It can also be configured to request recurring payments using standards like Nostr Wallet Connect (NIP-47), this will start with my spare node, to iterate quickly and get it ready for production.
 
 The security model is focused on cryptographic proof and minimizing the platform's role.
 
-- **Upfront Key Verification:** A provider's service is not listed until they sign a challenge string with the private key for the `xpub` they are offering. We verify this `(message, xpub, signature)` tuple to cryptographically prove control. This is the foundation of the platform's integrity.
+- **Upfront Key Verification:** A provider's service is not listed until they sign a challenge string with the private key for the `xpub` they are offering. We verify this `(message, xpub, signature)` tuple to cryptographically prove control in real-time before allowing key addition. This is the foundation of the platform's integrity.
 - **PSBT Handling:** When a client needs a signature, they submit an unsigned PSBT to our backend after paying the providers fee (or if their subscription is active). We pass this to the provider. The provider signs it and submits the signed PSBT back. The platform simply acts as a secure data conduit for the PSBT.
 - **Client Authentication:** For signing requests (after the initial backup), clients authenticate using a username, a strong hashed password, and a TOTP-based 2FA code. This provides strong security for initiating sensitive operations like signature requests.
 
@@ -381,20 +402,7 @@ NEXTAUTH_URL="http://localhost:3000"
 
 ### Testing Utilities
 
-The project includes several test scripts for different purposes:
-
-#### Test Files Overview
-
-| File                        | Purpose                                 | Usage                                                                           |
-| --------------------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
-| `working-lightning-test.js` | **Complete Lightning Integration Test** | Tests the full flow: provider → service → client → purchase → Lightning invoice |
-| `generate-real-keys.js`     | **Generate Real Bitcoin Keys**          | Creates real xpubs, signatures, and BOLT12 offers for testing                   |
-| `create-test-provider.js`   | **Create Test Provider**                | Creates a test provider in the database                                         |
-| `test-lightning.js`         | **Lightning Service Test**              | Tests Lightning invoice creation directly                                       |
-| `test-purchase-api.js`      | **Purchase API Test**                   | Tests the purchase API endpoint                                                 |
-| `test-lightning-simple.js`  | **Environment Check**                   | Verifies LND environment variables are set                                      |
-| `simple-lightning-test.js`  | **Simple Lightning Test**               | Basic Lightning invoice creation test                                           |
-| `manual-lightning-test.md`  | **Manual Test Guide**                   | Step-by-step manual testing instructions                                        |
+The project includes a comprehensive test suite located in the `tests/` folder. For detailed descriptions of all available tests and their usage, please refer to the `All Tests Descriptions.md` file.
 
 #### Running Tests
 
@@ -416,7 +424,7 @@ node working-lightning-test.js
 
 **Test Flow:**
 
-1. **Key Generation**: Runs `generate-real-keys.js` to create fresh xpub, signature, and BOLT12 offer
+1. **Key Generation**: Runs `generate-real-keys.js` to create fresh xpub, signature, and Lightning address
 2. **Provider Creation**: Creates a unique test provider with timestamp-based name
 3. **Service Creation**: Creates a new service with the fresh keys and 1 sat fees
 4. **Client Creation**: Creates a unique test client
@@ -436,10 +444,23 @@ node generate-real-keys.js
 - Generates a real BIP32 master key
 - Creates a valid xpub (extended public key)
 - Signs a message with the private key
-- Generates a BOLT12 offer
+- Generates a Lightning address for testing
 - Outputs all values needed for service creation
 
-##### 3. Environment Check
+##### 3. Signature Verification Test
+
+```bash
+node tests/test-signature-verification.js
+```
+
+**What it does:**
+
+- Tests the complete signature verification flow
+- Generates fresh keys and signatures
+- Verifies signatures against xpubs using ECPair
+- Ensures the signature validation system works correctly
+
+##### 4. Environment Check
 
 ```bash
 node test-lightning-simple.js
@@ -451,7 +472,7 @@ node test-lightning-simple.js
 - Checks if Lightning configuration is complete
 - Provides clear error messages for missing variables
 
-##### 4. Manual Testing
+##### 5. Manual Testing
 
 Follow the instructions in `manual-lightning-test.md` for step-by-step manual testing using curl commands.
 
@@ -482,3 +503,4 @@ Keep these essential test files:
 - `generate-real-keys.js` - **Utility** to generate real Bitcoin keys for testing
 - `test-lightning-simple.js` - **Environment check** to verify LND variables are set
 - `manual-lightning-test.md` - **Manual guide** for step-by-step testing
+- `tests/test-signature-verification.js` - **Signature verification test** to ensure cryptographic validation works

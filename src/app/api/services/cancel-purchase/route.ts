@@ -33,9 +33,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete the pending purchase
-    await prisma.servicePurchase.delete({
-      where: { id: purchase.id },
+    // Delete the pending purchase and reset service status
+    await prisma.$transaction(async (tx) => {
+      // Delete the pending purchase
+      await tx.servicePurchase.delete({
+        where: { id: purchase.id },
+      });
+
+      // Reset the service's purchased status
+      await tx.service.update({
+        where: { id: purchase.serviceId },
+        data: {
+          isPurchased: false,
+        },
+      });
     });
 
     return NextResponse.json({
