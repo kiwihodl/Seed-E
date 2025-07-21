@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Button from "@/components/Button";
 
 export default function Setup2FAPage() {
@@ -102,7 +103,7 @@ export default function Setup2FAPage() {
           {qrCode ? (
             <div className="text-center space-y-4">
               <div className="bg-white p-4 rounded-lg inline-block">
-                <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                <Image src={qrCode} alt="QR Code" width={192} height={192} />
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300">
                 <p className="mb-2">Or manually enter this secret:</p>
