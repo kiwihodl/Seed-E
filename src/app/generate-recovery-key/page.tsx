@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
+import DownloadBackup from "@/components/DownloadBackup";
 
 export default function GenerateRecoveryKeyPage() {
   const [recoveryKey, setRecoveryKey] = useState("");
   const [hasConfirmed, setHasConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -46,6 +48,9 @@ export default function GenerateRecoveryKeyPage() {
     setError("");
 
     try {
+      const username = localStorage.getItem("username");
+      const userType = localStorage.getItem("userType");
+
       const response = await fetch("/api/auth/confirm-recovery-key", {
         method: "POST",
         headers: {
@@ -53,11 +58,14 @@ export default function GenerateRecoveryKeyPage() {
         },
         body: JSON.stringify({
           recoveryKey,
+          username,
+          userType,
         }),
       });
 
       if (response.ok) {
-        // Check userType and redirect to appropriate dashboard
+        localStorage.setItem("recoveryKey", recoveryKey);
+
         const userType = localStorage.getItem("userType");
         if (userType === "client") {
           router.push("/client-dashboard");
@@ -75,8 +83,16 @@ export default function GenerateRecoveryKeyPage() {
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(recoveryKey);
+  const copyToClipboard = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(recoveryKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 500);
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
+    }
   };
 
   return (
@@ -109,13 +125,68 @@ export default function GenerateRecoveryKeyPage() {
                   {recoveryKey || "Generating..."}
                 </code>
               </div>
-              <button
-                onClick={copyToClipboard}
-                disabled={!recoveryKey}
-                className="mt-2 text-sm text-[#FF9500] hover:text-[#FF9500]/80 disabled:text-gray-400 dark:disabled:text-gray-500"
-              >
-                Copy to clipboard
-              </button>
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  onClick={(e) => copyToClipboard(e)}
+                  disabled={!recoveryKey}
+                  className="text-sm text-[#FF9500] hover:text-[#FF9500]/80 disabled:text-gray-400 dark:disabled:text-gray-500 flex items-center gap-2 relative z-10"
+                >
+                  {copied ? (
+                    <>
+                      <svg
+                        className="w-4 h-4 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
+                      </svg>
+                      Copy to clipboard
+                    </>
+                  )}
+                </button>
+                <DownloadBackup
+                  recoveryKey={recoveryKey}
+                  className="text-sm text-[#FF9500] hover:text-[#FF9500]/80 disabled:text-gray-400 dark:disabled:text-gray-500 flex items-center gap-2 relative z-10"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  Download Backup
+                </DownloadBackup>
+              </div>
             </div>
 
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4">

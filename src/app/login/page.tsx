@@ -14,23 +14,21 @@ export default function LoginPage() {
   const [userType, setUserType] = useState<"provider" | "client">("provider");
   const [qrCodeDataURL, setQrCodeDataURL] = useState("");
   const [twoFactorToken, setTwoFactorToken] = useState("");
+  const [twoFactorSecret, setTwoFactorSecret] = useState("");
   const [masterKey, setMasterKey] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Check if form is valid for login
   const isLoginFormValid = () => {
     return userType && username.trim() && password.trim();
   };
 
-  // Check if 2FA token is valid (6 digits)
   const is2FAFormValid = () => {
     return twoFactorToken.length === 6;
   };
 
-  // Check if master key is provided
   const isForgotPasswordFormValid = () => {
     return masterKey.trim().length > 0;
   };
@@ -56,18 +54,15 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store username, userType, and user ID in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("userType", userType);
         localStorage.setItem("userId", data.user.id);
 
         if (data.needs2FASetup) {
-          // Generate 2FA setup
           await generate2FASetup();
         } else if (data.needs2FAVerification) {
           setStep("2fa-verify");
         } else {
-          // Login successful, redirect to appropriate dashboard
           router.push(
             userType === "provider"
               ? "/provider-dashboard"
@@ -75,7 +70,6 @@ export default function LoginPage() {
           );
         }
       } else if (response.status === 401 && data.requires2FA) {
-        // 2FA is required, show 2FA verification step
         setStep("2fa-verify");
       } else {
         setError(data.error || "Login failed");
@@ -104,6 +98,7 @@ export default function LoginPage() {
 
       if (response.ok) {
         setQrCodeDataURL(data.qrCodeDataURL);
+        setTwoFactorSecret(data.secret);
         setStep("2fa-setup");
       } else {
         setError(data.error || "Failed to generate 2FA setup");
@@ -135,7 +130,6 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store username, userType, and user ID in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("userType", userType);
         localStorage.setItem("userId", data.user.id);
@@ -169,20 +163,18 @@ export default function LoginPage() {
           username,
           userType,
           token: twoFactorToken,
+          secret: twoFactorSecret,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.verified) {
-        // Store username, userType, and user ID in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("userType", userType);
         if (data.user?.id) {
           localStorage.setItem("userId", data.user.id);
         }
-
-        // 2FA setup successful, redirect to appropriate dashboard
         router.push(
           userType === "provider" ? "/provider-dashboard" : "/client-dashboard"
         );
@@ -215,15 +207,12 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store credentials in localStorage
         localStorage.setItem("username", data.username);
-        localStorage.setItem("userType", data.userType || "provider"); // Use actual userType from response
-        localStorage.setItem("tempPassword", data.newPassword);
+        localStorage.setItem("userType", data.userType || "provider");
 
-        // Redirect to reset password page
         router.push("/reset-password");
       } else {
-        setError(data.error || "Failed to reset password and 2FA");
+        setError(data.error || "Failed to initiate account recovery");
       }
     } catch {
       setError("Network error. Please try again.");

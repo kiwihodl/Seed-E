@@ -47,33 +47,34 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user has 2FA enabled
-    if (user.twoFactorSecret) {
-      if (!totpToken) {
-        return NextResponse.json(
-          {
-            error: "2FA token required",
-            requires2FA: true,
-            message: "Please enter your 2FA code",
-          },
-          { status: 401 }
-        );
-      }
+    if (!user.twoFactorSecret) {
+      return NextResponse.json(
+        { error: "2FA not set up. Please contact support." },
+        { status: 401 }
+      );
+    }
 
-      // Verify TOTP token
-      const verified = speakeasy.totp.verify({
-        secret: user.twoFactorSecret,
-        encoding: "base32",
-        token: totpToken,
-        window: 1, // Allow 1 time step in either direction for clock skew
-      });
+    if (!totpToken) {
+      return NextResponse.json(
+        {
+          error: "2FA token required",
+          requires2FA: true,
+          message: "Please enter your 2FA code",
+        },
+        { status: 401 }
+      );
+    }
 
-      if (!verified) {
-        return NextResponse.json(
-          { error: "Invalid 2FA token" },
-          { status: 401 }
-        );
-      }
+    // Verify TOTP token
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token: totpToken,
+      window: 1, // Allow 1 time step in either direction for clock skew
+    });
+
+    if (!verified) {
+      return NextResponse.json({ error: "Invalid 2FA token" }, { status: 401 });
     }
 
     const { passwordHash: _, ...userWithoutPassword } = user;

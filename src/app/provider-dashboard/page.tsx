@@ -653,6 +653,10 @@ export default function ProviderDashboard() {
     router.push("/");
   };
 
+  const capitalizeFirstLetter = (str: string) => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
   };
@@ -684,7 +688,9 @@ export default function ProviderDashboard() {
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {username ? `${username}'s Dashboard` : "Provider Dashboard"}
+              {username
+                ? `${capitalizeFirstLetter(username)} Provider Dashboard`
+                : "Provider Dashboard"}
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-300">
               Manage your signature requests and signing keys
@@ -720,9 +726,8 @@ export default function ProviderDashboard() {
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                 <div className="py-1">
                   <div className="px-4 py-2 text-sm text-gray-700 dark:text-white border-b border-gray-200 dark:border-gray-700">
-                    <div className="font-medium">{username}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-300">
-                      Provider
+                    <div className="font-medium">
+                      {username ? capitalizeFirstLetter(username) : "User"}
                     </div>
                   </div>
 

@@ -1,24 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
+
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
-    const { newPassword } = await request.json();
+    const { newPassword, username, userType } = await request.json();
 
     // Validate required fields
-    if (!newPassword) {
+    if (!newPassword || !username || !userType) {
       return NextResponse.json(
-        { error: "New password is required" },
+        { error: "New password, username, and user type are required" },
         { status: 400 }
       );
     }
 
-    // For now, return mock success since we're not using a real database
-    // In a real implementation, you would:
-    // 1. Get the username from the request or session
-    // 2. Hash the new password
-    // 3. Update the user record in the database
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Mock success response
+    // Update the user's password in the database
+    if (userType === "provider") {
+      await prisma.provider.update({
+        where: { username },
+        data: { passwordHash: hashedPassword },
+      });
+    } else if (userType === "client") {
+      await prisma.client.update({
+        where: { username },
+        data: { passwordHash: hashedPassword },
+      });
+    } else {
+      return NextResponse.json({ error: "Invalid user type" }, { status: 400 });
+    }
+
     return NextResponse.json({
       message: "Password updated successfully",
     });

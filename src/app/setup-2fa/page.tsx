@@ -54,6 +54,7 @@ export default function Setup2FAPage() {
 
     try {
       const username = localStorage.getItem("username") || "testuser";
+      const userType = localStorage.getItem("userType") || "client";
 
       const response = await fetch("/api/auth/2fa/verify", {
         method: "POST",
@@ -62,6 +63,7 @@ export default function Setup2FAPage() {
         },
         body: JSON.stringify({
           username: username,
+          userType: userType,
           token: verificationCode,
           secret: secret, // Pass the secret for proper validation
         }),

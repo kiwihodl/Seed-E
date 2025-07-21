@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as speakeasy from "speakeasy";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, token, secret } = await request.json();
+    const { username, token, secret, userType } = await request.json();
 
     if (!username || !token) {
       return NextResponse.json(
@@ -12,7 +15,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the token format (6 digits)
     const isValidToken = /^\d{6}$/.test(token);
 
     if (!isValidToken) {
@@ -22,7 +24,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use the actual secret passed from the frontend
     if (!secret) {
       return NextResponse.json(
         { error: "Secret is required for verification" },
@@ -30,15 +31,94 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the TOTP token using the actual secret
     const verified = speakeasy.totp.verify({
       secret: secret,
       encoding: "base32",
       token: token,
-      window: 1, // Allow 1 time step in either direction for clock skew
+      window: 1, 
     });
 
-    return NextResponse.json({ verified });
+    if (!verified) {
+      return NextResponse.json(
+        { error: "Invalid verification code" },
+        { status: 400 }
+      );
+    }
+
+    try {
+      if (userType === "provider") {
+        const provider = await prisma.provider.findUnique({
+          where: { username },
+        });
+
+        if (!provider) {
+          console.error(`Provider not found for username: ${username}`);
+          return NextResponse.json(
+            { error: "Provider not found" },
+            { status: 404 }
+          );
+        }
+
+        await prisma.provider.update({
+          where: { username },
+          data: { twoFactorSecret: secret },
+        });
+      } else if (userType === "client") {
+        const client = await prisma.client.findUnique({
+          where: { username },
+        });
+
+        if (!client) {
+          console.error(`Client not found for username: ${username}`);
+          return NextResponse.json(
+            { error: "Client not found" },
+            { status: 404 }
+          );
+        }
+
+        await prisma.client.update({
+          where: { username },
+          data: { twoFactorSecret: secret },
+        });
+      } else {
+        // Try both provider and client
+        const provider = await prisma.provider.findUnique({
+          where: { username },
+        });
+
+        if (provider) {
+          await prisma.provider.update({
+            where: { username },
+            data: { twoFactorSecret: secret },
+          });
+        } else {
+          const client = await prisma.client.findUnique({
+            where: { username },
+          });
+
+          if (client) {
+            await prisma.client.update({
+              where: { username },
+              data: { twoFactorSecret: secret },
+            });
+          } else {
+            console.error(`No user found for username: ${username}`);
+            return NextResponse.json(
+              { error: "User not found" },
+              { status: 404 }
+            );
+          }
+        }
+      }
+
+      return NextResponse.json({ verified: true });
+    } catch (dbError) {
+      console.error("Failed to save 2FA secret to database:", dbError);
+      return NextResponse.json(
+        { error: "Failed to save 2FA setup" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Failed to verify 2FA token:", error);
     return NextResponse.json(

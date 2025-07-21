@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Button from "@/components/Button";
+import DownloadBackup from "@/components/DownloadBackup";
 
 export default function ResetPasswordPage() {
   const [step, setStep] = useState<
-    "new-password" | "2fa-setup" | "new-master-key"
-  >("new-password");
+    "2fa-setup" | "new-password" | "new-master-key"
+  >("2fa-setup");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -33,9 +34,9 @@ export default function ResetPasswordPage() {
     hasSpecial: false,
   });
   const [twoFactorSecret, setTwoFactorSecret] = useState("");
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
 
-  // Password validation function
   const validatePassword = useCallback((password: string) => {
     return {
       hasLength: password.length >= 8,
@@ -46,7 +47,6 @@ export default function ResetPasswordPage() {
     };
   }, []);
 
-  // Check password match whenever passwords change
   useEffect(() => {
     if (confirmPassword) {
       setPasswordMatch(newPassword === confirmPassword);
@@ -55,16 +55,17 @@ export default function ResetPasswordPage() {
     }
   }, [newPassword, confirmPassword]);
 
-  // Check password strength whenever newPassword changes
   useEffect(() => {
     setPasswordStrength(validatePassword(newPassword));
   }, [newPassword, validatePassword]);
 
   useEffect(() => {
-    // Check if user has temp password (indicating they came from forgot password)
-    const tempPassword = localStorage.getItem("tempPassword");
-    if (!tempPassword) {
+    const username = localStorage.getItem("username");
+    const userType = localStorage.getItem("userType");
+    if (!username || !userType) {
       router.push("/login");
+    } else {
+      generate2FASetup();
     }
   }, [router]);
 
@@ -73,7 +74,6 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
     setError("");
 
-    // Check password strength
     const isPasswordStrong = Object.values(passwordStrength).every(Boolean);
     if (!isPasswordStrong) {
       setError("Password does not meet all requirements");
@@ -94,6 +94,9 @@ export default function ResetPasswordPage() {
     }
 
     try {
+      const username = localStorage.getItem("username");
+      const userType = localStorage.getItem("userType") || "provider";
+
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: {
@@ -101,17 +104,15 @@ export default function ResetPasswordPage() {
         },
         body: JSON.stringify({
           newPassword,
+          username,
+          userType,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Store new password temporarily
-        localStorage.setItem("newPassword", newPassword);
-
-        // Generate 2FA setup
-        await generate2FASetup();
+        await generateNewMasterKey();
       } else {
         setError(data.error || "Failed to set new password");
       }
@@ -124,14 +125,17 @@ export default function ResetPasswordPage() {
 
   const generate2FASetup = async () => {
     try {
+      const username = localStorage.getItem("username");
+      const userType = localStorage.getItem("userType") || "provider";
+
       const response = await fetch("/api/auth/2fa/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: localStorage.getItem("username"),
-          userType: "provider",
+          username,
+          userType,
         }),
       });
 
@@ -139,7 +143,7 @@ export default function ResetPasswordPage() {
 
       if (response.ok) {
         setQrCodeDataURL(data.qrCodeDataURL);
-        setTwoFactorSecret(data.secret); // Store the secret
+        setTwoFactorSecret(data.secret);
         setStep("2fa-setup");
       } else {
         setError(data.error || "Failed to generate 2FA setup");
@@ -155,24 +159,26 @@ export default function ResetPasswordPage() {
     setError("");
 
     try {
+      const username = localStorage.getItem("username");
+      const userType = localStorage.getItem("userType") || "provider";
+
       const response = await fetch("/api/auth/2fa/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: localStorage.getItem("username"),
-          userType: "provider",
+          username,
+          userType,
           token: twoFactorToken,
-          secret: twoFactorSecret, // Pass the secret
+          secret: twoFactorSecret,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.verified) {
-        // 2FA setup successful, generate new master key
-        await generateNewMasterKey();
+        setStep("new-password");
       } else {
         setError("Invalid 2FA token");
       }
@@ -185,14 +191,17 @@ export default function ResetPasswordPage() {
 
   const generateNewMasterKey = async () => {
     try {
+      const username = localStorage.getItem("username");
+      const userType = localStorage.getItem("userType") || "provider";
+
       const response = await fetch("/api/auth/generate-recovery-key", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: localStorage.getItem("username"),
-          userType: "provider",
+          username,
+          userType,
         }),
       });
 
@@ -200,6 +209,7 @@ export default function ResetPasswordPage() {
 
       if (response.ok) {
         setNewMasterKey(data.recoveryKey);
+        localStorage.setItem("recoveryKey", data.recoveryKey);
         setStep("new-master-key");
       } else {
         setError(data.error || "Failed to generate new master key");
@@ -209,37 +219,48 @@ export default function ResetPasswordPage() {
     }
   };
 
-  const handleComplete = () => {
-    // Generate recovery kit
-    const recoveryKit = {
-      username: localStorage.getItem("username"),
-      password: localStorage.getItem("newPassword"),
-      masterKey: newMasterKey,
-      generatedAt: new Date().toISOString(),
-      note: "Keep this file secure. You'll need these credentials if you forget your password or 2FA.",
-    };
+  const copyToClipboard = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(newMasterKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 500);
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
+    }
+  };
 
-    // Create and download the recovery kit
-    const blob = new Blob([JSON.stringify(recoveryKit, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `recovery-kit-${localStorage.getItem("username")}-${
-      new Date().toISOString().split("T")[0]
-    }.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleComplete = async () => {
+    try {
+      const username = localStorage.getItem("username");
+      const userType = localStorage.getItem("userType") || "provider";
 
-    // Clear temporary data
-    localStorage.removeItem("tempPassword");
+      const response = await fetch("/api/auth/confirm-recovery-key", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          recoveryKey: newMasterKey,
+          username,
+          userType,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to save recovery key to database");
+      }
+    } catch (error) {
+      console.error("Error saving recovery key:", error);
+    }
+
     localStorage.removeItem("newPassword");
 
-    // Redirect to dashboard
-    router.push("/provider-dashboard");
+    const userType = localStorage.getItem("userType") || "provider";
+    router.push(
+      userType === "provider" ? "/provider-dashboard" : "/client-dashboard"
+    );
   };
 
   return (
@@ -310,7 +331,6 @@ export default function ResetPasswordPage() {
                   </button>
                 </div>
 
-                {/* Password strength indicators */}
                 {newPassword && (
                   <div className="mt-2 space-y-1">
                     <div className="space-y-1">
@@ -455,7 +475,6 @@ export default function ResetPasswordPage() {
                   </button>
                 </div>
 
-                {/* Password match indicator */}
                 {confirmPassword && passwordMatch !== null && (
                   <div
                     className={`mt-2 text-xs ${
@@ -600,6 +619,69 @@ export default function ResetPasswordPage() {
                 <p className="text-sm font-mono text-yellow-800 dark:text-yellow-200 break-all">
                   {newMasterKey}
                 </p>
+                <div className="mt-2 flex items-center justify-between">
+                  <button
+                    onClick={(e) => copyToClipboard(e)}
+                    disabled={!newMasterKey}
+                    className="text-sm text-[#FF9500] hover:text-[#FF9500]/80 disabled:text-gray-400 dark:disabled:text-gray-500 flex items-center gap-2 relative z-10"
+                  >
+                    {copied ? (
+                      <>
+                        <svg
+                          className="w-4 h-4 text-green-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                        Copy to clipboard
+                      </>
+                    )}
+                  </button>
+                  <DownloadBackup
+                    recoveryKey={newMasterKey}
+                    isRecovery={true}
+                    className="text-sm text-[#FF9500] hover:text-[#FF9500]/80 disabled:text-gray-400 dark:disabled:text-gray-500 flex items-center gap-2 relative z-10"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    Download Backup
+                  </DownloadBackup>
+                </div>
               </div>
             </div>
 
@@ -622,11 +704,6 @@ export default function ResetPasswordPage() {
                   <p className="text-sm text-blue-800 dark:text-blue-200">
                     <strong>Important:</strong> Write down this master key and
                     store it securely. You won&apos;t be able to see it again.
-                  </p>
-                  <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
-                    <strong>Recovery Kit:</strong> A file containing your
-                    username, password, and master key will be automatically
-                    downloaded when you complete the setup.
                   </p>
                 </div>
               </div>

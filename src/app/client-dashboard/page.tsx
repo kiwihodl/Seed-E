@@ -227,15 +227,8 @@ export default function ClientDashboard() {
   };
 
   const handleLogout = () => {
-    // Clear any stored authentication data
-    localStorage.removeItem("username");
-    localStorage.removeItem("userType");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("tempPassword");
-    sessionStorage.clear();
-
-    // Redirect to home page
-    router.push("/");
+    localStorage.clear();
+    router.push("/login");
   };
 
   const handlePurchaseService = async (service: Service) => {
@@ -274,8 +267,6 @@ export default function ClientDashboard() {
         });
         setCurrentService(service);
         setShowPaymentModal(true);
-
-        // Only refresh available services (not purchased services yet)
         fetchAvailableServices();
       } else {
         const error = await response.json();
@@ -396,6 +387,10 @@ export default function ClientDashboard() {
     };
   }, [showPaymentModal, paymentData]);
 
+  const capitalizeFirstLetter = (str: string) => {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
   };
@@ -477,7 +472,9 @@ export default function ClientDashboard() {
         <div className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {username ? `${username}'s Dashboard` : "Client Dashboard"}
+              {username
+                ? `${capitalizeFirstLetter(username)} Client Dashboard`
+                : "Client Dashboard"}
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-300">
               Browse signing services and manage your signature requests
@@ -486,36 +483,37 @@ export default function ClientDashboard() {
 
           {/* Settings Menu */}
           <div className="relative settings-menu">
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="flex items-center space-x-2 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors"
-            >
-              <div className="w-8 h-8 bg-[#FF9500] text-black rounded-full flex items-center justify-center font-semibold">
-                {username ? getInitials(username) : "U"}
-              </div>
-              <svg
-                className="w-4 h-4 text-gray-600 dark:text-gray-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center space-x-2 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
+                <div className="w-8 h-8 bg-[#FF9500] text-black rounded-full flex items-center justify-center font-semibold">
+                  {username ? getInitials(username) : "U"}
+                </div>
+                <svg
+                  className="w-4 h-4 text-gray-600 dark:text-gray-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </div>
 
             {/* Settings Dropdown */}
             {showSettings && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                 <div className="py-1">
                   <div className="px-4 py-2 text-sm text-gray-700 dark:text-white border-b border-gray-200 dark:border-gray-700">
-                    <div className="font-medium">{username}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-300">
-                      Client
+                    <div className="font-medium">
+                      {username ? capitalizeFirstLetter(username) : "User"}
                     </div>
                   </div>
 
