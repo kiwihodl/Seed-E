@@ -3,11 +3,16 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
+import {
+  validateUserType,
+  getStoredUserInfo,
+  clearUserSession,
+} from "@/lib/auth";
 
 interface SignatureRequest {
   id: string;
   createdAt: string;
-  unsignedPsbt: string;
+  psbtData: string;
   unlocksAt: string;
   clientUsername: string;
   servicePolicyType: string;
@@ -51,6 +56,8 @@ export default function ProviderDashboard() {
     policyType: "",
     xpub: "",
     controlSignature: "",
+    masterFingerprint: "",
+    derivationPath: "",
     initialBackupFee: "",
     perSignatureFee: "",
     monthlyFee: "",
@@ -360,6 +367,8 @@ export default function ProviderDashboard() {
       addKeyForm.policyType &&
       addKeyForm.xpub &&
       addKeyForm.controlSignature &&
+      addKeyForm.masterFingerprint &&
+      addKeyForm.derivationPath &&
       addKeyForm.initialBackupFee &&
       addKeyForm.perSignatureFee &&
       addKeyForm.minTimeDelayDays &&
@@ -415,40 +424,45 @@ export default function ProviderDashboard() {
     setTimeDelayTimer(timer);
   };
 
-  useEffect(() => {
-    // Get username from localStorage or session
-    const storedUsername = localStorage.getItem("username");
-    if (storedUsername) {
-      setUsername(storedUsername);
+  const validateAuthentication = async () => {
+    const { username: storedUsername, userType, userId } = getStoredUserInfo();
+
+    if (!storedUsername || !userType || !userId) {
+      console.log("No authentication found, redirecting to login");
+      clearUserSession();
+      router.push("/login");
+      return false;
     }
 
-    // Get current theme from localStorage
-    const currentTheme = getCurrentTheme();
-    setIsDark(currentTheme);
+    const isValidProvider = await validateUserType(storedUsername, "provider");
+    if (!isValidProvider) {
+      console.log(
+        "User is not a provider, redirecting to appropriate dashboard"
+      );
+      clearUserSession();
+      router.push("/login");
+      return false;
+    }
 
-    // Check if we have a provider ID before fetching data
-    const providerId = localStorage.getItem("userId");
-    if (providerId) {
-      // Load signature requests and policies
+    setUsername(storedUsername);
+    return true;
+  };
+
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      const isAuthenticated = await validateAuthentication();
+      if (!isAuthenticated) {
+        return;
+      }
+      const currentTheme = getCurrentTheme();
+      setIsDark(currentTheme);
       fetchRequests();
       fetchPolicies();
-    } else {
-      // If no provider ID, just set loading to false
-      setLoading(false);
+    };
 
-      // Redirect to login after a short delay if no provider ID
-      const timeout = setTimeout(() => {
-        const currentProviderId = localStorage.getItem("userId");
-        if (!currentProviderId) {
-          router.push("/login");
-        }
-      }, 2000);
-
-      return () => clearTimeout(timeout);
-    }
+    initializeDashboard();
   }, [router]);
 
-  // Handle clicking outside settings menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -465,7 +479,6 @@ export default function ProviderDashboard() {
     };
   }, [showSettings]);
 
-  // Watch for provider ID changes and retry fetching data
   useEffect(() => {
     const providerId = localStorage.getItem("userId");
     if (providerId && policies.length === 0 && !loading) {
@@ -475,17 +488,28 @@ export default function ProviderDashboard() {
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch("/api/providers/signature-requests");
+      const providerId = localStorage.getItem("userId");
+      if (!providerId) {
+        console.error("No provider ID found");
+        return;
+      }
+
+      const response = await fetch(
+        `/api/signature-requests/provider?providerId=${providerId}`
+      );
 
       if (response.ok) {
         const data = await response.json();
-        setRequests(data.pendingRequests);
+        setRequests(data);
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Failed to fetch requests");
+        // Don't show error for empty requests - this is normal for new providers
+        console.log("No signature requests found (normal for new providers)");
+        setRequests([]);
       }
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (error) {
+      // Don't show error for network issues when there are no requests
+      console.log("Network error fetching requests (normal for new providers)");
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -519,20 +543,15 @@ export default function ProviderDashboard() {
     setAddingKey(true);
     setError("");
 
-    // Pre-submission validation - prevent submission if there are field errors
     if (!isFormValid()) {
       setAddingKey(false);
       return;
     }
-
-    // Validate xpub format before submission
     validateXpub(addKeyForm.xpub);
     if (xpubError) {
       setAddingKey(false);
       return;
     }
-
-    // Get provider ID from localStorage
     const providerId = localStorage.getItem("userId");
     if (!providerId) {
       setError("Provider ID not found. Please log in again.");
@@ -551,6 +570,8 @@ export default function ProviderDashboard() {
           policyType: addKeyForm.policyType,
           xpub: addKeyForm.xpub.trim(),
           controlSignature: addKeyForm.controlSignature.trim(),
+          masterFingerprint: addKeyForm.masterFingerprint.trim(),
+          derivationPath: addKeyForm.derivationPath.trim(),
           initialBackupFee: parseInt(
             parseNumberFromCommas(addKeyForm.initialBackupFee)
           ),
@@ -571,6 +592,8 @@ export default function ProviderDashboard() {
           policyType: "",
           xpub: "",
           controlSignature: "",
+          masterFingerprint: "",
+          derivationPath: "",
           initialBackupFee: "",
           perSignatureFee: "",
           monthlyFee: "",
@@ -582,11 +605,9 @@ export default function ProviderDashboard() {
         setXpubDuplicateError("");
         setLightningAddressError("");
         setLightningAddressValidating(false);
-        // Refresh policies
         fetchPolicies();
       } else {
         const data = await response.json();
-        // Check if it's a Lightning address validation error and set field-specific error
         if (data.error && data.error.includes("LNURL verify")) {
           setLightningAddressError(data.error);
         } else if (data.error && data.error.includes("signature")) {
@@ -612,14 +633,21 @@ export default function ProviderDashboard() {
     setError("");
 
     try {
-      const response = await fetch("/api/providers/signature-requests", {
+      const providerId = localStorage.getItem("userId");
+      if (!providerId) {
+        setError("Provider ID not found. Please log in again.");
+        return;
+      }
+
+      const response = await fetch("/api/signature-requests/sign", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           signatureRequestId: selectedRequest.id,
-          signedPsbt: signedPsbt.trim(),
+          signedPsbtData: signedPsbt.trim(),
+          providerId,
         }),
       });
 
@@ -627,7 +655,6 @@ export default function ProviderDashboard() {
         setError("");
         setSignedPsbt("");
         setSelectedRequest(null);
-        // Refresh the requests list
         fetchRequests();
         alert("PSBT signed successfully!");
       } else {
@@ -642,14 +669,11 @@ export default function ProviderDashboard() {
   };
 
   const handleLogout = () => {
-    // Clear any stored authentication data
     localStorage.removeItem("username");
     localStorage.removeItem("userType");
-    localStorage.removeItem("userId"); // Also clear the user ID
+    localStorage.removeItem("userId");
     localStorage.removeItem("tempPassword");
     sessionStorage.clear();
-
-    // Redirect to home page
     router.push("/");
   };
 
@@ -1097,6 +1121,54 @@ export default function ProviderDashboard() {
                 </p>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Master Fingerprint *
+                  </label>
+                  <input
+                    type="text"
+                    value={addKeyForm.masterFingerprint}
+                    onChange={(e) =>
+                      setAddKeyForm({
+                        ...addKeyForm,
+                        masterFingerprint: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                    placeholder="97046043"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    The master fingerprint (e.g., 97046043) for client wallet
+                    setup.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Derivation Path *
+                  </label>
+                  <input
+                    type="text"
+                    value={addKeyForm.derivationPath}
+                    onChange={(e) =>
+                      setAddKeyForm({
+                        ...addKeyForm,
+                        derivationPath: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                    placeholder="m/48'/0'/0'/2'"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    The derivation path (e.g., m/48'/0'/0'/2') for client wallet
+                    setup.
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Lightning Address *
@@ -1160,7 +1232,8 @@ export default function ProviderDashboard() {
                   addKeyForm.lightningAddress && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Recommended providers: Alby (@getalby.com), Voltage
-                      (@voltage.com), or any provider that supports LNURL verify
+                      (@voltage.com), or any provider that supports LNURL
+                      verify. Example: highlyregarded@getalby.com
                     </p>
                   )}
               </div>
@@ -1175,6 +1248,8 @@ export default function ProviderDashboard() {
                       policyType: "",
                       xpub: "",
                       controlSignature: "",
+                      masterFingerprint: "",
+                      derivationPath: "",
                       initialBackupFee: "",
                       perSignatureFee: "",
                       monthlyFee: "",

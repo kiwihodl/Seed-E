@@ -204,6 +204,8 @@ export async function POST(request: NextRequest) {
       policyType,
       xpub,
       controlSignature,
+      masterFingerprint,
+      derivationPath,
       initialBackupFee,
       perSignatureFee,
       monthlyFee,
@@ -216,6 +218,8 @@ export async function POST(request: NextRequest) {
       policyType,
       xpub: xpub?.substring(0, 20) + "...",
       controlSignature: controlSignature?.substring(0, 20) + "...",
+      masterFingerprint,
+      derivationPath,
       initialBackupFee,
       perSignatureFee,
       monthlyFee,
@@ -229,6 +233,8 @@ export async function POST(request: NextRequest) {
       !policyType ||
       !xpub ||
       !controlSignature ||
+      !masterFingerprint ||
+      !derivationPath ||
       !initialBackupFee ||
       !perSignatureFee ||
       !minTimeDelayDays ||
@@ -362,6 +368,8 @@ export async function POST(request: NextRequest) {
         xpubHash: xpubHash, // Store hashed xpub instead of plain xpub
         encryptedXpub: xpub.trim(), // Store the actual xpub for provider access
         controlSignature: controlSignature.trim(),
+        masterFingerprint: masterFingerprint.trim(),
+        derivationPath: derivationPath.trim(),
         initialBackupFee: BigInt(initialBackupFee),
         perSignatureFee: BigInt(perSignatureFee),
         monthlyFee: monthlyFee ? BigInt(monthlyFee) : null,
@@ -383,6 +391,8 @@ export async function POST(request: NextRequest) {
           policyType: newService.policyType,
           xpubHash: newService.xpubHash, // Return xpubHash instead of xpub
           controlSignature: newService.controlSignature,
+          masterFingerprint: newService.masterFingerprint,
+          derivationPath: newService.derivationPath,
           initialBackupFee: Number(newService.initialBackupFee),
           perSignatureFee: Number(newService.perSignatureFee),
           monthlyFee: newService.monthlyFee

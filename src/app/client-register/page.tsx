@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 
-// Validate password strength - moved outside component to prevent recreation
 const validatePassword = (password: string) => {
   const errors: string[] = [];
   if (password.length < 8) {
@@ -47,13 +46,10 @@ export default function ClientRegister() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
-
-  // Debounce timer for username checking
   const [usernameTimer, setUsernameTimer] = useState<NodeJS.Timeout | null>(
     null
   );
 
-  // Check username availability
   const checkUsernameAvailability = useCallback(async (username: string) => {
     if (username.length < 3) {
       setUsernameAvailable(null);
@@ -81,17 +77,13 @@ export default function ClientRegister() {
     }
   }, []);
 
-  // Handle username change with debounce
   const handleUsernameChange = useCallback(
     (value: string) => {
       setFormData((prev) => ({ ...prev, username: value }));
-
-      // Clear existing timer
       if (usernameTimer) {
         clearTimeout(usernameTimer);
       }
 
-      // Set new timer for username checking
       const timer = setTimeout(() => {
         checkUsernameAvailability(value);
       }, 500);
@@ -101,28 +93,21 @@ export default function ClientRegister() {
     [usernameTimer, checkUsernameAvailability]
   );
 
-  // Validate form on mount and when formData changes
   useEffect(() => {
     const errors = {
       username: "",
       password: "",
       confirmPassword: "",
     };
-
-    // Validate username
     if (formData.username.length > 0 && formData.username.length < 3) {
       errors.username = "Username must be at least 3 characters long";
     }
-
-    // Validate password
     if (formData.password.length > 0) {
       const passwordErrors = validatePassword(formData.password);
       if (passwordErrors.length > 0) {
         errors.password = passwordErrors.join(", ");
       }
     }
-
-    // Validate confirm password
     if (
       formData.confirmPassword.length > 0 &&
       formData.password !== formData.confirmPassword
@@ -169,15 +154,12 @@ export default function ClientRegister() {
       });
 
       const data = await response.json();
-      // console.log("Registration response:", response.status, data);
 
       if (response.ok) {
-        // console.log("Registration successful, redirecting to 2FA setup...");
-        // Store username for 2FA setup
         if (typeof window !== "undefined") {
           localStorage.setItem("username", formData.username.trim());
           localStorage.setItem("userType", "client");
-          localStorage.setItem("userId", data.clientId); // Store the client ID
+          localStorage.setItem("userId", data.clientId);
           localStorage.setItem("tempPassword", formData.password);
         }
         router.push("/setup-2fa");
@@ -200,8 +182,6 @@ export default function ClientRegister() {
       ...prev,
       [name]: value,
     }));
-
-    // Check username availability when username changes
     if (name === "username") {
       handleUsernameChange(value);
     }
@@ -267,19 +247,19 @@ export default function ClientRegister() {
                   {validationErrors.username}
                 </p>
               )}
-              {usernameAvailable === false && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                  This username is already taken
-                </p>
-              )}
               {usernameAvailable === true && (
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  This username is available
+                  Username is available
+                </p>
+              )}
+              {usernameAvailable === false && (
+                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                  Username is already taken
                 </p>
               )}
               {isCheckingUsername && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Checking availability...
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  Checking username availability...
                 </p>
               )}
             </div>
@@ -298,14 +278,13 @@ export default function ClientRegister() {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
                     validationErrors.password
                       ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100"
                       : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   }`}
-                  placeholder="Create a strong password"
+                  placeholder="Enter your password"
                   required
-                  minLength={8}
                 />
                 <button
                   type="button"
@@ -316,8 +295,8 @@ export default function ClientRegister() {
                     <svg
                       className="h-5 w-5 text-gray-400"
                       fill="none"
-                      viewBox="0 0 24 24"
                       stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
                       <path
                         strokeLinecap="round"
@@ -330,8 +309,8 @@ export default function ClientRegister() {
                     <svg
                       className="h-5 w-5 text-gray-400"
                       fill="none"
-                      viewBox="0 0 24 24"
                       stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
                       <path
                         strokeLinecap="round"
@@ -370,14 +349,13 @@ export default function ClientRegister() {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`mt-1 block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                  className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
                     validationErrors.confirmPassword
                       ? "border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100"
                       : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   }`}
                   placeholder="Confirm your password"
                   required
-                  minLength={8}
                 />
                 <button
                   type="button"
@@ -388,8 +366,8 @@ export default function ClientRegister() {
                     <svg
                       className="h-5 w-5 text-gray-400"
                       fill="none"
-                      viewBox="0 0 24 24"
                       stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
                       <path
                         strokeLinecap="round"
@@ -402,8 +380,8 @@ export default function ClientRegister() {
                     <svg
                       className="h-5 w-5 text-gray-400"
                       fill="none"
-                      viewBox="0 0 24 24"
                       stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
                       <path
                         strokeLinecap="round"
@@ -426,58 +404,36 @@ export default function ClientRegister() {
                   {validationErrors.confirmPassword}
                 </p>
               )}
-              {formData.password === formData.confirmPassword &&
-                formData.confirmPassword.length > 0 && (
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                    Passwords match!
-                  </p>
-                )}
             </div>
           </div>
 
           {error && (
-            <div className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-200 dark:border-red-800">
-              {error}
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
 
           <Button
             type="submit"
-            variant="primary"
-            size="lg"
-            fullWidth
+            disabled={!isFormValid() || loading}
             loading={loading}
-            disabled={loading || !isFormValid()}
+            className="w-full"
           >
-            Create Client Account
+            {loading ? "Creating Account..." : "Create Account"}
           </Button>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Already have an account?{" "}
+              <a
+                href="/login"
+                className="font-medium text-[#FF9500] hover:text-[#FF9500]/80"
+              >
+                Sign in
+              </a>
+            </p>
+          </div>
         </form>
-
-        <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={() => router.push("/login")}
-              className="font-medium text-[#FF9500] hover:text-[#FF9500]/80 focus:outline-none"
-            >
-              Sign in
-            </button>
-          </p>
-        </div>
-
-        <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Want to provide signing services?{" "}
-            <button
-              type="button"
-              onClick={() => router.push("/register")}
-              className="font-medium text-[#FF9500] hover:text-[#FF9500]/80 focus:outline-none"
-            >
-              Register as Provider
-            </button>
-          </p>
-        </div>
       </div>
     </div>
   );

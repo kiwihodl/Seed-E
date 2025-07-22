@@ -10,27 +10,22 @@ export async function GET(request: NextRequest) {
 
     if (!name) {
       return NextResponse.json(
-        { error: "Username is required" },
+        { error: "Name parameter is required" },
         { status: 400 }
       );
     }
 
-    // Check if username already exists (both providers and clients)
     const existingProvider = await prisma.provider.findUnique({
-      where: { username: name.trim() },
-    });
-
-    const existingClient = await prisma.client.findUnique({
-      where: { username: name.trim() },
+      where: { username: name },
     });
 
     return NextResponse.json({
-      available: !existingProvider && !existingClient,
+      available: !existingProvider,
     });
   } catch (error) {
-    console.error("Username check error:", error);
+    console.error("Error checking provider username:", error);
     return NextResponse.json(
-      { error: "Failed to check username availability" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

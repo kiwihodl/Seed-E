@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Validate that the provider's Lightning address supports LNURL verify
     const lightningAddress =
-      service.lightningAddress || "bitcoinbutler@amber.app";
+      service.lightningAddress || "highlyregarded@getalby.com";
 
     console.log(`🔍 Validating Lightning address: ${lightningAddress}`);
     console.log(`💰 Amount: ${totalFee} sats (${amountMsats} msats)`);

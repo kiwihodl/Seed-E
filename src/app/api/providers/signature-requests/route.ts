@@ -6,7 +6,7 @@ export async function GET() {
     const mockRequests: Array<{
       id: string;
       createdAt: string;
-      unsignedPsbt: string;
+      psbtData: string;
       unlocksAt: string;
       clientUsername: string;
       servicePolicyType: string;

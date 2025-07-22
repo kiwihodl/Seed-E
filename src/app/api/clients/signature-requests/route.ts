@@ -32,10 +32,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { clientId, serviceId, unsignedPsbt } = await request.json();
+    const { clientId, serviceId, psbtData } = await request.json();
 
     // Validate input
-    if (!clientId || !serviceId || !unsignedPsbt) {
+    if (!clientId || !serviceId || !psbtData) {
       return NextResponse.json(
         { error: "Client ID, service ID, and unsigned PSBT are required" },
         { status: 400 }

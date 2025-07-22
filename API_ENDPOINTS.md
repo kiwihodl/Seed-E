@@ -195,7 +195,7 @@ Most endpoints require authentication via username/password + TOTP 2FA token.
   "username": "string",
   "password": "string",
   "twoFactorToken": "string",
-  "unsignedPsbt": "string"
+  "psbtData": "string"
 }
 ```
 
@@ -266,7 +266,7 @@ const signatureRequest = await fetch("/api/signatures", {
     username: "client123",
     password: "securepass",
     twoFactorToken: "123456",
-    unsignedPsbt: "base64_psbt",
+    psbtData: "base64_psbt",
   }),
 });
 ```

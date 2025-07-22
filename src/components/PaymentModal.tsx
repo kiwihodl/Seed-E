@@ -7,6 +7,7 @@ import Button from "@/components/Button";
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   paymentRequest: string;
   amount: number;
   providerName: string;
@@ -17,6 +18,7 @@ interface PaymentModalProps {
 export default function PaymentModal({
   isOpen,
   onClose,
+  onSuccess,
   paymentRequest,
   amount,
   providerName,
@@ -25,6 +27,7 @@ export default function PaymentModal({
 }: PaymentModalProps) {
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [showFullInvoice, setShowFullInvoice] = useState(false);
 
   // Calculate time left
   useEffect(() => {
@@ -57,6 +60,13 @@ export default function PaymentModal({
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+  };
+
+  const truncateInvoice = (invoice: string) => {
+    if (invoice.length <= 20) return invoice;
+    return `${invoice.substring(0, 20)}...${invoice.substring(
+      invoice.length - 4
+    )}`;
   };
 
   if (!isOpen) return null;
@@ -128,46 +138,95 @@ export default function PaymentModal({
             </label>
             <div className="relative">
               <textarea
-                value={paymentRequest}
+                value={
+                  showFullInvoice
+                    ? paymentRequest
+                    : truncateInvoice(paymentRequest)
+                }
                 readOnly
-                rows={3}
-                className="w-full px-3 py-2 pr-12 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm resize-none"
+                rows={showFullInvoice ? 3 : 1}
+                className="w-full px-3 py-2 pr-20 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm resize-none"
               />
-              <button
-                onClick={copyToClipboard}
-                className="absolute right-2 top-2 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                title="Copy to clipboard"
-              >
-                {copied ? (
-                  <svg
-                    className="w-5 h-5 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
-                )}
-              </button>
+              <div className="absolute right-2 top-2 flex space-x-1">
+                <button
+                  onClick={() => setShowFullInvoice(!showFullInvoice)}
+                  className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  title={
+                    showFullInvoice ? "Hide full invoice" : "Show full invoice"
+                  }
+                >
+                  {showFullInvoice ? (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={copyToClipboard}
+                  className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  title="Copy to clipboard"
+                >
+                  {copied ? (
+                    <svg
+                      className="w-4 h-4 text-green-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             {copied && (
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
@@ -176,33 +235,7 @@ export default function PaymentModal({
             )}
           </div>
 
-          {/* Instructions */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
-            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-              How to pay:
-            </h4>
-            <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-              <li>1. Scan the QR code with your Lightning wallet</li>
-              <li>2. Or copy the invoice and paste it in your wallet</li>
-              <li>3. Confirm the payment in your wallet</li>
-              <li>4. Wait for payment confirmation</li>
-            </ol>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex space-x-3">
-            <Button onClick={onClose} variant="secondary" size="md" fullWidth>
-              Close
-            </Button>
-            <Button
-              onClick={copyToClipboard}
-              variant="primary"
-              size="md"
-              fullWidth
-            >
-              Copy Invoice
-            </Button>
-          </div>
+          {/* No action buttons - use top-right X to close */}
         </div>
       </div>
     </div>

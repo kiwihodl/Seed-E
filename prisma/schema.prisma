@@ -66,6 +66,12 @@ model Service {
   // The signature proving the provider controls the xpub.
   controlSignature String
 
+  // The master fingerprint (e.g., 97046043) for client wallet setup.
+  masterFingerprint String?
+
+  // The derivation path (e.g., m/48'/0'/0'/2') for client wallet setup.
+  derivationPath String?
+
   // The initial fee to get access to the xpub. In sats.
   initialBackupFee BigInt
 
@@ -156,7 +162,8 @@ model ServicePurchase {
 }
 
 enum RequestStatus {
-  PENDING    // Client has paid, waiting for provider to sign.
+  REQUESTED  // Client has paid signature fee, waiting for PSBT upload
+  PENDING    // PSBT uploaded, waiting for provider to sign.
   SIGNED     // Provider has signed and submitted the PSBT.
   COMPLETED  // Client has acknowledged/received the signed PSBT.
   EXPIRED    // The request timed out.
@@ -182,10 +189,25 @@ model SignatureRequest {
 
   // The PSBT (Partially Signed Bitcoin Transaction) needing a signature.
   // Stored as a base64 string.
-  unsignedPsbt String
+  psbtData String
 
   // The PSBT after the provider has signed it.
-  signedPsbt String?
+  signedPsbtData String?
+
+  // Hash of the PSBT for validation
+  psbtHash String?
+
+  // The payment hash for the signature fee
+  paymentHash String? @unique
+
+  // LNURL verify URL for payment verification
+  verifyUrl String?
+
+  // Whether the payment has been confirmed
+  paymentConfirmed Boolean @default(false)
+
+  // The fee paid for this signature request.
+  signatureFee BigInt
 
   // The timestamp when the signed PSBT can be released to the client.
   unlocksAt DateTime
@@ -193,10 +215,7 @@ model SignatureRequest {
   // The timestamp when the provider uploaded the signed PSBT.
   signedAt DateTime?
 
-  // The fee paid for this signature request.
-  fee BigInt
-
-  status RequestStatus @default(PENDING)
+  status RequestStatus @default(REQUESTED)
 }
 
 // Represents a NIP-47 subscription payment request

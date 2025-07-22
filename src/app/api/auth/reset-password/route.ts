@@ -34,8 +34,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid user type" }, { status: 400 });
     }
 
+    let userInfo;
+    if (userType === "provider") {
+      userInfo = await prisma.provider.findUnique({
+        where: { username },
+        select: { id: true, username: true },
+      });
+    } else {
+      userInfo = await prisma.client.findUnique({
+        where: { username },
+        select: { id: true, username: true },
+      });
+    }
+
     return NextResponse.json({
       message: "Password updated successfully",
+      user: {
+        id: userInfo?.id,
+        username: userInfo?.username,
+        userType,
+      },
     });
   } catch (error) {
     console.error("Failed to reset password:", error);

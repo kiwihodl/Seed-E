@@ -1,0 +1,290 @@
+const crypto = require("crypto");
+
+// Generate a realistic unsigned PSBT
+function generateUnsignedPSBT() {
+  // PSBT magic bytes: 0x70736274ff
+  const magicBytes = Buffer.from([0x70, 0x73, 0x62, 0x74, 0xff]);
+
+  // Version: 0
+  const version = Buffer.from([0x00, 0x00, 0x00, 0x00]);
+
+  // Global transaction section
+  const globalTx = Buffer.from([0x00]); // separator
+
+  // Input section (simplified)
+  const inputSection = Buffer.from([
+    0x01, // input count
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00, // prev tx hash
+    0x00,
+    0x00,
+    0x00,
+    0x00, // output index
+    0x00, // sequence
+    0x00, // separator
+  ]);
+
+  // Output section (simplified)
+  const outputSection = Buffer.from([
+    0x01, // output count
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00, // value (8 bytes)
+    0x00, // script length
+    0x00, // separator
+  ]);
+
+  // Combine all sections
+  const psbt = Buffer.concat([
+    magicBytes,
+    version,
+    globalTx,
+    inputSection,
+    outputSection,
+  ]);
+
+  return psbt.toString("base64");
+}
+
+// Generate a signed PSBT (with dummy signature)
+function generateSignedPSBT() {
+  // PSBT magic bytes: 0x70736274ff
+  const magicBytes = Buffer.from([0x70, 0x73, 0x62, 0x74, 0xff]);
+
+  // Version: 0
+  const version = Buffer.from([0x00, 0x00, 0x00, 0x00]);
+
+  // Global transaction section
+  const globalTx = Buffer.from([0x00]); // separator
+
+  // Input section with signature
+  const inputSection = Buffer.from([
+    0x01, // input count
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00, // prev tx hash
+    0x00,
+    0x00,
+    0x00,
+    0x00, // output index
+    0x00, // sequence
+    0x02, // PARTIAL_SIG type
+    0x21, // key length
+    0x02,
+    0x03,
+    0x04,
+    0x05,
+    0x06,
+    0x07,
+    0x08,
+    0x09,
+    0x0a,
+    0x0b,
+    0x0c,
+    0x0d,
+    0x0e,
+    0x0f,
+    0x10,
+    0x11,
+    0x12,
+    0x13,
+    0x14,
+    0x15,
+    0x16,
+    0x17,
+    0x18,
+    0x19,
+    0x1a,
+    0x1b,
+    0x1c,
+    0x1d,
+    0x1e,
+    0x1f,
+    0x20,
+    0x21, // pubkey
+    0x47, // value length
+    0x30,
+    0x45,
+    0x02,
+    0x21,
+    0x00,
+    0x01,
+    0x02,
+    0x03,
+    0x04,
+    0x05,
+    0x06,
+    0x07,
+    0x08,
+    0x09,
+    0x0a,
+    0x0b,
+    0x0c,
+    0x0d,
+    0x0e,
+    0x0f,
+    0x10,
+    0x11,
+    0x12,
+    0x13,
+    0x14,
+    0x15,
+    0x16,
+    0x17,
+    0x18,
+    0x19,
+    0x1a,
+    0x1b,
+    0x1c,
+    0x1d,
+    0x1e,
+    0x1f,
+    0x20, // signature
+    0x02,
+    0x20,
+    0x00,
+    0x01,
+    0x02,
+    0x03,
+    0x04,
+    0x05,
+    0x06,
+    0x07,
+    0x08,
+    0x09,
+    0x0a,
+    0x0b,
+    0x0c,
+    0x0d,
+    0x0e,
+    0x0f,
+    0x10,
+    0x11,
+    0x12,
+    0x13,
+    0x14,
+    0x15,
+    0x16,
+    0x17,
+    0x18,
+    0x19,
+    0x1a,
+    0x1b,
+    0x1c,
+    0x1d,
+    0x1e,
+    0x1f,
+    0x20,
+    0x01, // sighash type
+    0x00, // separator
+  ]);
+
+  // Output section
+  const outputSection = Buffer.from([
+    0x01, // output count
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00, // value (8 bytes)
+    0x00, // script length
+    0x00, // separator
+  ]);
+
+  // Combine all sections
+  const psbt = Buffer.concat([
+    magicBytes,
+    version,
+    globalTx,
+    inputSection,
+    outputSection,
+  ]);
+
+  return psbt.toString("base64");
+}
+
+console.log("Generating realistic PSBT files...\n");
+
+const unsignedPSBT = generateUnsignedPSBT();
+const signedPSBT = generateSignedPSBT();
+
+console.log("Unsigned PSBT (should pass validation):");
+console.log(unsignedPSBT);
+console.log("\nSigned PSBT (should fail validation):");
+console.log(signedPSBT);
+
+// Write to files
+const fs = require("fs");
+fs.writeFileSync("test-unsigned-2of3.psbt", unsignedPSBT);
+fs.writeFileSync("test-signed-2of3.psbt", signedPSBT);
+
+console.log("\n✅ PSBT files written to:");
+console.log("- test-unsigned-2of3.psbt");
+console.log("- test-signed-2of3.psbt");

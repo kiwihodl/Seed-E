@@ -256,11 +256,19 @@ export default function ResetPasswordPage() {
     }
 
     localStorage.removeItem("newPassword");
-
     const userType = localStorage.getItem("userType") || "provider";
-    router.push(
-      userType === "provider" ? "/provider-dashboard" : "/client-dashboard"
-    );
+    const username = localStorage.getItem("username");
+    const userId = localStorage.getItem("userId");
+
+    if (username && userType && userId) {
+      console.log("Maintaining session after recovery");
+      router.push(
+        userType === "provider" ? "/provider-dashboard" : "/client-dashboard"
+      );
+    } else {
+      console.log("Session lost, redirecting to login");
+      router.push("/login");
+    }
   };
 
   return (

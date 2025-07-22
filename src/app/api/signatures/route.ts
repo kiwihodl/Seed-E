@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { unsignedPsbt, clientUsername, serviceId } = body;
+    const { psbtData, clientUsername, serviceId } = body;
 
-    if (!unsignedPsbt || !clientUsername || !serviceId) {
+    if (!psbtData || !clientUsername || !serviceId) {
       return NextResponse.json(
         {
           error: "Unsigned PSBT, client username, and service ID are required",

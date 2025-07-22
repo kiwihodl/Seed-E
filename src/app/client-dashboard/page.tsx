@@ -3,6 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PaymentModal from "@/components/PaymentModal";
+import SignatureRequestModal from "@/components/SignatureRequestModal";
+import Button from "@/components/Button";
+import {
+  validateUserType,
+  getStoredUserInfo,
+  clearUserSession,
+} from "@/lib/auth";
 
 interface Service {
   id: string;
@@ -23,6 +30,8 @@ interface PurchasedService {
   providerName: string;
   policyType: string;
   xpubKey: string; // Changed from xpubHash to xpubKey
+  masterFingerprint?: string;
+  derivationPath?: string;
   initialBackupFee: number;
   perSignatureFee: number;
   monthlyFee?: number;
@@ -37,7 +46,7 @@ interface SignatureRequest {
   id: string;
   serviceId: string;
   serviceName: string;
-  status: "PENDING" | "SIGNED" | "COMPLETED" | "EXPIRED";
+  status: "REQUESTED" | "PENDING" | "SIGNED" | "COMPLETED" | "EXPIRED";
   createdAt: string;
   expiresAt: string;
   penaltyDate: string;
@@ -72,17 +81,16 @@ export default function ClientDashboard() {
     useState<Service | null>(null);
   const [showAvailableServiceModal, setShowAvailableServiceModal] =
     useState(false);
+  const [showSignatureRequestModal, setShowSignatureRequestModal] =
+    useState(false);
   const [visibleXpubs, setVisibleXpubs] = useState<Set<string>>(new Set());
   const [copiedXpubs, setCopiedXpubs] = useState<Set<string>>(new Set());
   const router = useRouter();
-
-  // Get current theme state from localStorage
   const getCurrentTheme = () => {
     const savedTheme = localStorage.getItem("theme");
     return savedTheme === "light" ? false : true;
   };
 
-  // Update theme state
   const updateTheme = (dark: boolean) => {
     const html = document.documentElement;
     if (dark) {
@@ -95,25 +103,44 @@ export default function ClientDashboard() {
     setIsDark(dark);
   };
 
-  // Fetch data on component mount
-  useEffect(() => {
-    // Get username from localStorage or session
-    const storedUsername = localStorage.getItem("username");
-    if (storedUsername) {
-      setUsername(storedUsername);
+  const validateAuthentication = async () => {
+    const { username: storedUsername, userType, userId } = getStoredUserInfo();
+
+    if (!storedUsername || !userType || !userId) {
+      console.log("No authentication found, redirecting to login");
+      clearUserSession();
+      router.push("/login");
+      return false;
     }
 
-    // Get current theme from localStorage
-    const currentTheme = getCurrentTheme();
-    setIsDark(currentTheme);
+    const isValidClient = await validateUserType(storedUsername, "client");
+    if (!isValidClient) {
+      console.log("User is not a client, redirecting to appropriate dashboard");
+      clearUserSession();
+      router.push("/login");
+      return false;
+    }
 
-    // Load services and requests
-    fetchAvailableServices();
-    fetchPurchasedServices();
-    fetchRequests();
-  }, []); // Only run on mount
+    setUsername(storedUsername);
+    return true;
+  };
 
-  // Handle clicking outside settings menu
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      const isAuthenticated = await validateAuthentication();
+      if (!isAuthenticated) {
+        return;
+      }
+      const currentTheme = getCurrentTheme();
+      setIsDark(currentTheme);
+      fetchAvailableServices();
+      fetchPurchasedServices();
+      fetchRequests();
+    };
+
+    initializeDashboard();
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -130,7 +157,6 @@ export default function ClientDashboard() {
     };
   }, [showSettings]);
 
-  // Handle clicking outside service modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -148,7 +174,6 @@ export default function ClientDashboard() {
     };
   }, [showServiceModal]);
 
-  // Handle clicking outside available service modal
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -186,8 +211,6 @@ export default function ClientDashboard() {
   const fetchPurchasedServices = async () => {
     try {
       const clientId = localStorage.getItem("userId");
-      // console.log("🔍 Fetching purchased services for client ID:", clientId);
-
       if (!clientId) {
         console.log("❌ No client ID found in localStorage");
         return;
@@ -199,7 +222,10 @@ export default function ClientDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        // console.log("✅ Purchased services data:", data);
+        console.log(
+          "📦 Received purchased services data:",
+          data.purchasedServices
+        );
         setPurchasedServices(data.purchasedServices);
       } else {
         console.error("Failed to fetch purchased services");
@@ -213,16 +239,28 @@ export default function ClientDashboard() {
 
   const fetchRequests = async () => {
     try {
-      const response = await fetch("/api/clients/signature-requests");
+      const clientId = localStorage.getItem("userId");
+      if (!clientId) {
+        console.error("No client ID found");
+        return;
+      }
+
+      const response = await fetch(
+        `/api/signature-requests/client?clientId=${clientId}`
+      );
 
       if (response.ok) {
         const data = await response.json();
-        setRequests(data.requests);
+        setRequests(data);
       } else {
-        console.error("Failed to fetch requests");
+        // Don't show error for empty requests - this is normal for new clients
+        console.log("No signature requests found (normal for new clients)");
+        setRequests([]);
       }
-    } catch {
-      console.error("Network error fetching requests");
+    } catch (error) {
+      // Don't show error for network issues when there are no requests
+      console.log("Network error fetching requests (normal for new clients)");
+      setRequests([]);
     }
   };
 
@@ -233,7 +271,6 @@ export default function ClientDashboard() {
 
   const handlePurchaseService = async (service: Service) => {
     try {
-      // Get client ID from localStorage or session
       const clientId = localStorage.getItem("userId");
       console.log("🛒 Attempting purchase with client ID:", clientId);
 
@@ -257,7 +294,6 @@ export default function ClientDashboard() {
         const data = await response.json();
         console.log("✅ Invoice created successfully:", data);
 
-        // Set payment data and show modal
         setPaymentData({
           paymentRequest: data.purchase.invoice.paymentRequest,
           paymentHash: data.purchase.invoice.paymentHash,
@@ -292,7 +328,6 @@ export default function ClientDashboard() {
           paymentData.paymentHash
         );
 
-        // Cancel the pending purchase
         const response = await fetch("/api/services/cancel-purchase", {
           method: "POST",
           headers: {
@@ -320,11 +355,10 @@ export default function ClientDashboard() {
     setCurrentService(null);
   };
 
-  // Check payment status periodically when modal is open
   useEffect(() => {
     let interval: NodeJS.Timeout;
     let attempts = 0;
-    const maxAttempts = 100; // 5 minutes (100 * 3 seconds)
+    const maxAttempts = 100;
 
     if (showPaymentModal && paymentData) {
       console.log("🔄 Starting payment confirmation polling...");
@@ -358,12 +392,9 @@ export default function ClientDashboard() {
             const data = await response.json();
 
             if (data.confirmed) {
-              // Close the modal
               setShowPaymentModal(false);
               setPaymentData(null);
               setCurrentService(null);
-
-              // Refresh the services lists
               fetchAvailableServices();
               fetchPurchasedServices();
             }
@@ -376,7 +407,7 @@ export default function ClientDashboard() {
         } catch (error) {
           console.error("❌ Failed to check payment status:", error);
         }
-      }, 3000); // Check every 3 seconds
+      }, 3000);
     }
 
     return () => {
@@ -405,6 +436,8 @@ export default function ClientDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "REQUESTED":
+        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
       case "PENDING":
         return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
       case "SIGNED":
@@ -436,11 +469,7 @@ export default function ClientDashboard() {
   const copyXpubToClipboard = async (xpub: string, serviceId: string) => {
     try {
       await navigator.clipboard.writeText(xpub);
-
-      // Show tick icon
       setCopiedXpubs((prev) => new Set([...prev, serviceId]));
-
-      // Reset tick icon after 2 seconds
       setTimeout(() => {
         setCopiedXpubs((prev) => {
           const newSet = new Set(prev);
@@ -735,10 +764,17 @@ export default function ClientDashboard() {
 
         {/* Signature Requests */}
         <div className="mt-8 bg-white dark:bg-gray-800 shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white">
               Your Signature Requests ({requests.length})
             </h2>
+            <Button
+              onClick={() => setShowSignatureRequestModal(true)}
+              variant="primary"
+              size="sm"
+            >
+              Request Signature
+            </Button>
           </div>
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {requests.length === 0 ? (
@@ -757,6 +793,9 @@ export default function ClientDashboard() {
                   />
                 </svg>
                 <p className="mt-2">No signature requests</p>
+                <p className="mt-1 text-sm">
+                  Click "Request Signature" to get started
+                </p>
               </div>
             ) : (
               requests.map((request) => (
@@ -807,6 +846,18 @@ export default function ClientDashboard() {
             expiresAt={paymentData.expiresAt}
           />
         )}
+
+        {/* Signature Request Modal */}
+        <SignatureRequestModal
+          isOpen={showSignatureRequestModal}
+          onClose={async () => {
+            setShowSignatureRequestModal(false);
+            // Refresh signature requests list when modal closes
+            await fetchRequests();
+          }}
+          purchasedServices={purchasedServices}
+          clientId={localStorage.getItem("userId") || ""}
+        />
 
         {/* Service Details Modal */}
         {showServiceModal && selectedPurchasedService && (
@@ -924,6 +975,43 @@ export default function ClientDashboard() {
                     <input
                       type="text"
                       value={formatDate(selectedPurchasedService.purchasedAt)}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Master Fingerprint
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        selectedPurchasedService.masterFingerprint ||
+                        "Not provided"
+                      }
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    {/* Debug info */}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Debug:{" "}
+                      {selectedPurchasedService.masterFingerprint
+                        ? "Has data"
+                        : "No data"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Derivation Path
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        selectedPurchasedService.derivationPath ||
+                        "Not provided"
+                      }
                       readOnly
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
                     />

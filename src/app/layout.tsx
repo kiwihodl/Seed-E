@@ -1,40 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import "./globals.css";
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [isDark, setIsDark] = useState(true);
+function LayoutContent({ children }: { children: React.ReactNode }) {
+  const { theme, toggleTheme } = useTheme();
   const pathname = usePathname();
-
-  useEffect(() => {
-    // Get theme from localStorage or default to dark
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme === "light") {
-      setIsDark(false);
-    } else if (savedTheme === "dark") {
-      setIsDark(true);
-    }
-    // If no saved theme, default to dark (current behavior)
-  }, []);
-
-  useEffect(() => {
-    // Apply dark mode class to html element
-    const html = document.documentElement;
-    if (isDark) {
-      html.classList.add("dark");
-    } else {
-      html.classList.remove("dark");
-    }
-
-    // Save theme to localStorage
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-  }, [isDark]);
 
   // Don't show theme toggle on dashboard pages (they have their own in avatar dropdown)
   const showThemeToggle =
@@ -47,11 +19,15 @@ export default function RootLayout({
         {showThemeToggle && (
           <div className="fixed top-6 right-4 z-50">
             <button
-              onClick={() => setIsDark(!isDark)}
+              onClick={toggleTheme}
               className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none transition-colors"
-              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              title={
+                theme === "dark"
+                  ? "Switch to Light Mode"
+                  : "Switch to Dark Mode"
+              }
             >
-              {isDark ? (
+              {theme === "dark" ? (
                 <svg
                   className="w-5 h-5 text-gray-600 dark:text-gray-300"
                   fill="none"
@@ -86,5 +62,17 @@ export default function RootLayout({
         {children}
       </body>
     </html>
+  );
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ThemeProvider>
+      <LayoutContent>{children}</LayoutContent>
+    </ThemeProvider>
   );
 }
