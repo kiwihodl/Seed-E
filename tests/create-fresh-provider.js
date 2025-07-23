@@ -30,7 +30,6 @@ async function createFreshProvider() {
         xpubHash: "hash_" + crypto.randomBytes(8).toString("hex"),
         encryptedXpub:
           "xpub6H1LXWLaKsWFhvm6RV3ELAzCBiYVj1THUFVFpnC8d4K6EYuGg3FjjkjzkVeLmz4RzjrZNZxRUz8vYQHczLjs7uydmYWohtmLDt8dqCsQs3m",
-        controlSignature: "signature_" + crypto.randomBytes(16).toString("hex"),
         initialBackupFee: 1,
         perSignatureFee: 1,
         minTimeDelay: 168,
@@ -41,7 +40,6 @@ async function createFreshProvider() {
         xpubHash: "hash_" + crypto.randomBytes(8).toString("hex"),
         encryptedXpub:
           "xpub6H1LXWLaKsWFhvm6RV3ELAzCBiYVj1THUFVFpnC8d4K6EYuGg3FjjkjzkVeLmz4RzjrZNZxRUz8vYQHczLjs7uydmYWohtmLDt8dqCsQs3m",
-        controlSignature: "signature_" + crypto.randomBytes(16).toString("hex"),
         initialBackupFee: 1,
         perSignatureFee: 1,
         minTimeDelay: 168,
@@ -52,7 +50,6 @@ async function createFreshProvider() {
         xpubHash: "hash_" + crypto.randomBytes(8).toString("hex"),
         encryptedXpub:
           "xpub6H1LXWLaKsWFhvm6RV3ELAzCBiYVj1THUFVFpnC8d4K6EYuGg3FjjkjzkVeLmz4RzjrZNZxRUz8vYQHczLjs7uydmYWohtmLDt8dqCsQs3m",
-        controlSignature: "signature_" + crypto.randomBytes(16).toString("hex"),
         initialBackupFee: 1,
         perSignatureFee: 1,
         minTimeDelay: 168,

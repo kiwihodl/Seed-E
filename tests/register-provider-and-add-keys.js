@@ -93,7 +93,6 @@ async function registerProviderAndAddKeys() {
           policyType: key.policyType,
           xpubHash: key.xpub, // For now, use xpub as hash
           encryptedXpub: key.xpub,
-          controlSignature: key.signatureHex,
           initialBackupFee: BigInt(1), // 1 sat
           perSignatureFee: BigInt(1), // 1 sat
           monthlyFee: BigInt(1), // 1 sat

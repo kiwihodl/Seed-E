@@ -63,9 +63,6 @@ model Service {
   // The encrypted extended public key (only accessible to the provider).
   encryptedXpub String?
 
-  // The signature proving the provider controls the xpub.
-  controlSignature String
-
   // The master fingerprint (e.g., 97046043) for client wallet setup.
   masterFingerprint String?
 

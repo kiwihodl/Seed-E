@@ -61,7 +61,6 @@ function generateRealKey(policyType) {
 
   return {
     xpub,
-    controlSignature: signatureHex,
     masterFingerprint,
     derivationPath,
   };
@@ -203,7 +202,6 @@ async function createNewServices() {
           policyType: serviceData.policyType,
           xpubHash: xpubHash,
           encryptedXpub: serviceData.xpub, // Store the actual xpub
-          controlSignature: serviceData.controlSignature,
           masterFingerprint: serviceData.masterFingerprint,
           derivationPath: serviceData.derivationPath,
           initialBackupFee: serviceData.initialBackupFee,

@@ -223,6 +223,18 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Critical Disclaimer Banner */}
+      <div className="fixed top-0 left-0 right-0 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="text-center">
+            <p className="text-xs text-yellow-800 dark:text-yellow-200 max-w-4xl mx-auto">
+              ⚠️ <strong>EXPERIMENTAL SOFTWARE:</strong> Risk of fund loss.
+              Providers can see transaction history. Use small amounts only.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">

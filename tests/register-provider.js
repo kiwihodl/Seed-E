@@ -60,7 +60,6 @@ function generateRealKey(policyType) {
 
   return {
     xpub,
-    controlSignature: signatureHex,
     masterFingerprint,
     derivationPath,
   };
@@ -70,12 +69,15 @@ async function registerProvider() {
   console.log("🔧 Registering test provider...");
 
   try {
-    // Create provider
+    // Create provider with proper bcrypt hash
+    const bcrypt = require("bcryptjs");
+    const password = "testpass123";
+    const passwordHash = await bcrypt.hash(password, 12);
+
     const provider = await prisma.provider.create({
       data: {
         username: "testprovider11", // Changed to avoid unique constraint
-        passwordHash:
-          "$2b$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsvqNu/1m", // "password"
+        passwordHash: passwordHash,
         twoFactorSecret: "JBSWY3DPEHPK3PXP", // Test 2FA secret
       },
     });
@@ -142,7 +144,6 @@ async function registerProvider() {
           policyType: serviceData.policyType,
           xpubHash: xpubHash,
           encryptedXpub: serviceData.xpub, // Store the actual xpub
-          controlSignature: serviceData.controlSignature,
           masterFingerprint: serviceData.masterFingerprint,
           derivationPath: serviceData.derivationPath,
           initialBackupFee: serviceData.initialBackupFee,

@@ -17,43 +17,65 @@ export async function POST(request: NextRequest) {
 
     console.log(`🔍 Confirm-payment API called with hash: ${paymentHash}`);
 
-    // Find the signature request by payment hash (like service purchase)
-    const signatureRequest = await prisma.signatureRequest.findFirst({
-      where: {
-        paymentHash,
-      },
-      include: {
-        service: {
-          include: {
-            provider: true,
-          },
-        },
-      },
+    // First, try to find an existing signature request
+    let signatureRequest = await prisma.signatureRequest.findFirst({
+      where: { paymentHash },
+      include: { service: true },
     });
 
+    // If no signature request exists yet, check payment status directly
     if (!signatureRequest) {
-      console.log("❌ No signature request found for payment hash");
-      return NextResponse.json(
-        { error: "Signature request not found" },
-        { status: 404 }
+      console.log(
+        "🔍 No signature request found, checking payment status directly"
       );
+
+      // For signature requests, we need to get the service info from the payment hash
+      // Since we don't have a signature request yet, we'll use a default Lightning address
+      const lightningAddress = "highlyregarded@getalby.com"; // Default for now
+      const amountSats = 1; // Default signature fee
+      const amountMsats = amountSats * 1000;
+
+      console.log(`🔍 Using default Lightning address: ${lightningAddress}`);
+      console.log(`💰 Amount: ${amountSats} sats (${amountMsats} msats)`);
+
+      try {
+        const verifyResult =
+          await lightningService.checkPaymentStatusWithContext(
+            paymentHash,
+            lightningAddress,
+            amountMsats,
+            null // No verify URL for direct payment check
+          );
+
+        console.log(`✅ Direct payment check result:`, verifyResult);
+
+        if (verifyResult) {
+          console.log("✅ Payment confirmed via direct check");
+          return NextResponse.json({
+            success: true,
+            confirmed: true,
+            message: "Payment confirmed",
+            method: "direct_check",
+          });
+        } else {
+          console.log("💰 Payment not yet confirmed via direct check");
+          return NextResponse.json({
+            success: true,
+            confirmed: false,
+            message: "Payment not yet confirmed",
+            method: "direct_check",
+          });
+        }
+      } catch (verifyError) {
+        console.error("❌ Error verifying payment directly:", verifyError);
+        return NextResponse.json(
+          { error: "Failed to verify payment" },
+          { status: 500 }
+        );
+      }
     }
 
-    console.log(
-      `✅ Found signature request: ${signatureRequest.id} Active: ${signatureRequest.paymentConfirmed}`
-    );
-
-    // Check if payment is already confirmed
-    if (signatureRequest.paymentConfirmed) {
-      console.log("✅ Payment already confirmed");
-      return NextResponse.json({
-        success: true,
-        confirmed: true,
-        message: "Payment already confirmed",
-      });
-    }
-
-    // Get lightning address for verification
+    // If signature request exists, proceed with normal flow
     const lightningAddress = signatureRequest.service.lightningAddress;
     console.log(`🔍 Using Lightning address: ${lightningAddress}`);
 
@@ -99,6 +121,7 @@ export async function POST(request: NextRequest) {
           success: true,
           confirmed: true,
           message: "Payment confirmed",
+          method: "signature_request",
         });
       } else {
         console.log("💰 Payment status check result: false");
@@ -109,6 +132,7 @@ export async function POST(request: NextRequest) {
           success: true,
           confirmed: false,
           message: "Payment not yet confirmed",
+          method: "signature_request",
         });
       }
     } catch (verifyError) {

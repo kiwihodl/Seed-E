@@ -20,9 +20,18 @@ const validateSignatureFromXpub = (
       message,
     });
 
-    // Parse the xpub
-    const node = bip32.fromBase58(xpub);
-    console.log("✅ Xpub parsed successfully");
+    // Parse the xpub - handle both lowercase and uppercase variants
+    let node;
+    try {
+      node = bip32.fromBase58(xpub);
+      console.log("✅ Xpub parsed successfully");
+    } catch (error) {
+      console.log("❌ Failed to parse xpub:", (error as Error).message);
+      return {
+        isValid: false,
+        error: "Invalid xpub format. Must be a valid extended public key.",
+      };
+    }
 
     // Create the message hash
     const messageHash = bitcoin.crypto.sha256(Buffer.from(message, "utf8"));

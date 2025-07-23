@@ -57,10 +57,30 @@ export async function POST(request: NextRequest) {
       providerLightningAddress: lightningAddress,
     });
 
-    // Store payment info temporarily (we'll create the signature request only after payment + PSBT validation)
-    console.log("✅ Payment request created for signature fee");
+    // Create a temporary signature request record to store the payment hash
+    // This will be updated when the PSBT is uploaded
+    const tempSignatureRequest = await prisma.signatureRequest.create({
+      data: {
+        clientId,
+        serviceId,
+        psbtData: "", // Empty for now, will be updated when PSBT is uploaded
+        psbtHash: "", // Empty for now
+        paymentHash: paymentRequest.paymentHash,
+        paymentConfirmed: false, // Will be set to true when payment is confirmed
+        signatureFee: BigInt(amount),
+        unlocksAt: new Date(
+          Date.now() + purchase.service.minTimeDelay * 60 * 60 * 1000
+        ),
+        status: "REQUESTED",
+        verifyUrl: paymentRequest.verifyUrl || null,
+      },
+    });
 
     console.log("✅ Payment request created for signature fee");
+    console.log(
+      "✅ Temporary signature request created:",
+      tempSignatureRequest.id
+    );
 
     return NextResponse.json({
       success: true,
@@ -69,6 +89,7 @@ export async function POST(request: NextRequest) {
       amount: amount,
       description: paymentRequest.description,
       expiresAt: paymentRequest.expiresAt,
+      signatureRequestId: tempSignatureRequest.id, // Return the temp signature request ID
     });
   } catch (error) {
     console.error("❌ Error creating signature request payment:", error);

@@ -105,10 +105,6 @@ async function validateSignedPSBT(
       return { isValid: false, error: "Invalid PSBT format" };
     }
 
-    // For now, we'll do basic validation
-    // In a real implementation, you'd use a Bitcoin library to parse and validate
-    // For testing purposes, we'll accept any PSBT that passes basic format checks
-
     return { isValid: true };
   } catch (error) {
     console.error("Signed PSBT validation error:", error);

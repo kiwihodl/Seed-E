@@ -12,58 +12,49 @@ https://your-seed-e-instance.com/api
 
 ## Authentication
 
-Most endpoints require authentication via username/password + TOTP 2FA token.
+Most endpoints require authentication via username/password + TOTP 2FA token. User sessions are managed via browser cookies.
 
 ## Core Endpoints
 
-### Provider Management
+### Service Discovery
 
-#### `POST /api/providers`
+#### `GET /api/services`
 
-**Register a new provider and create their first service**
-
-**Request Body:**
-
-```json
-{
-  "username": "string",
-  "password": "string",
-  "name": "string",
-  "policyType": "P2WSH" | "P2TR" | "P2SH",
-  "xpub": "string",
-  "controlSignature": "string",
-  "initialBackupFee": "number (sats)",
-  "perSignatureFee": "number (sats)",
-  "monthlyFee": "number (sats) | null",
-  "annualFee": "number (sats) | null",
-  "minTimeDelay": "number (hours)",
-  "bolt12Offer": "string"
-}
-```
+**List available services for purchase**
 
 **Response:**
 
 ```json
 {
-  "providerId": "string",
-  "serviceId": "string",
-  "message": "Provider registered successfully"
+  "services": [
+    {
+      "id": "string",
+      "providerName": "string",
+      "policyType": "P2WSH" | "P2TR" | "P2SH",
+      "xpubHash": "string (SHA256 hash of xpub)",
+      "initialBackupFee": "number (sats)",
+      "perSignatureFee": "number (sats)",
+      "monthlyFee": "number (sats) | undefined",
+      "minTimeDelay": "number (hours)",
+      "createdAt": "ISO timestamp",
+      "isPurchased": "boolean"
+    }
+  ]
 }
 ```
 
 ### Client Management
 
-#### `POST /api/clients/purchase`
+#### `POST /api/clients/register`
 
-**Register a client and purchase a service**
+**Register a new client account**
 
 **Request Body:**
 
 ```json
 {
   "username": "string",
-  "password": "string",
-  "serviceId": "string"
+  "password": "string"
 }
 ```
 
@@ -72,9 +63,153 @@ Most endpoints require authentication via username/password + TOTP 2FA token.
 ```json
 {
   "clientId": "string",
-  "invoice": "lnbc...",
+  "message": "Client registered successfully"
+}
+```
+
+#### `POST /api/clients/purchase`
+
+**Purchase a service (creates client if doesn't exist)**
+
+**Request Body:**
+
+```json
+{
+  "serviceId": "string",
+  "username": "string",
+  "password": "string"
+}
+```
+
+**Response:**
+
+```json
+{
+  "clientId": "string",
+  "paymentRequest": "lnbc...",
   "paymentHash": "string",
+  "amount": "number (sats)",
+  "description": "string",
   "expiresAt": "ISO timestamp"
+}
+```
+
+#### `GET /api/clients/purchased-services?clientId={clientId}`
+
+**Get client's purchased services**
+
+**Response:**
+
+```json
+{
+  "purchasedServices": [
+    {
+      "id": "string",
+      "serviceId": "string",
+      "providerName": "string",
+      "policyType": "string",
+      "xpubKey": "string (full xpub)",
+      "masterFingerprint": "string",
+      "derivationPath": "string",
+      "initialBackupFee": "number",
+      "perSignatureFee": "number",
+      "monthlyFee": "number | undefined",
+      "minTimeDelay": "number",
+      "purchasedAt": "ISO timestamp",
+      "expiresAt": "ISO timestamp | undefined",
+      "isActive": "boolean",
+      "paymentHash": "string"
+    }
+  ]
+}
+```
+
+### Provider Management
+
+#### `POST /api/providers/register`
+
+**Register a new provider account**
+
+**Request Body:**
+
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+
+**Response:**
+
+```json
+{
+  "providerId": "string",
+  "message": "Provider registered successfully"
+}
+```
+
+#### `POST /api/providers/services`
+
+**Create a new service listing**
+
+**Request Body:**
+
+```json
+{
+  "policyType": "P2WSH" | "P2TR" | "P2SH",
+  "xpub": "string",
+  "masterFingerprint": "string",
+  "derivationPath": "string",
+  "initialBackupFee": "number (sats)",
+  "perSignatureFee": "number (sats)",
+  "monthlyFee": "number (sats) | undefined",
+  "minTimeDelay": "number (hours)",
+  "lightningAddress": "string"
+}
+```
+
+**Response:**
+
+```json
+{
+  "serviceId": "string",
+  "message": "Service created successfully"
+}
+```
+
+#### `GET /api/providers/policies?providerId={providerId}`
+
+**Get provider's service policies**
+
+**Response:**
+
+```json
+{
+  "policies": [
+    {
+      "id": "string",
+      "policyType": "string",
+      "xpub": "string",
+      "xpubHash": "string",
+      "initialBackupFee": "number",
+      "perSignatureFee": "number",
+      "monthlyFee": "number | undefined",
+      "minTimeDelay": "number",
+      "lightningAddress": "string",
+      "createdAt": "ISO timestamp",
+      "isPurchased": "boolean",
+      "servicePurchases": [
+        {
+          "id": "string",
+          "client": {
+            "username": "string"
+          },
+          "createdAt": "ISO timestamp",
+          "isActive": "boolean"
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -100,7 +235,8 @@ Most endpoints require authentication via username/password + TOTP 2FA token.
 {
   "needs2FASetup": "boolean",
   "needs2FAVerification": "boolean",
-  "userType": "provider" | "client"
+  "userType": "provider" | "client",
+  "userId": "string"
 }
 ```
 
@@ -147,55 +283,34 @@ Most endpoints require authentication via username/password + TOTP 2FA token.
 }
 ```
 
-### Service Discovery
+#### `POST /api/auth/validate-user`
 
-#### `GET /api/services`
-
-**List available services with filtering**
-
-**Query Parameters:**
-
-- `policyType`: `P2WSH` | `P2TR` | `P2SH`
-- `maxInitialBackupFee`: `number`
-- `maxPerSignatureFee`: `number`
-- `maxMonthlyFee`: `number`
-- `sortBy`: `penalties_asc` | `delay_desc` | `null` (random)
+**Validate current user session**
 
 **Response:**
 
 ```json
-[
-  {
-    "id": "string",
-    "policyType": "P2WSH" | "P2TR" | "P2SH",
-    "xpub": "string",
-    "initialBackupFee": "number",
-    "perSignatureFee": "number",
-    "monthlyFee": "number | null",
-    "annualFee": "number | null",
-    "minTimeDelay": "number",
-    "provider": {
-      "username": "string",
-      "createdAt": "ISO timestamp"
-    }
-  }
-]
+{
+  "username": "string",
+  "userType": "provider" | "client",
+  "userId": "string"
+}
 ```
 
 ### Signature Requests
 
-#### `POST /api/signatures`
+#### `POST /api/signature-requests/create`
 
-**Submit a signature request**
+**Create a new signature request**
 
 **Request Body:**
 
 ```json
 {
-  "username": "string",
-  "password": "string",
-  "twoFactorToken": "string",
-  "psbtData": "string"
+  "clientId": "string",
+  "serviceId": "string",
+  "psbtData": "string (base64 encoded PSBT)",
+  "paymentHash": "string"
 }
 ```
 
@@ -205,11 +320,149 @@ Most endpoints require authentication via username/password + TOTP 2FA token.
 {
   "id": "string",
   "unlocksAt": "ISO timestamp",
+  "status": "PENDING",
   "message": "Signature request created successfully"
 }
 ```
 
+#### `GET /api/signature-requests/client?clientId={clientId}`
+
+**Get client's signature requests**
+
+**Response:**
+
+```json
+{
+  "signatureRequests": [
+    {
+      "id": "string",
+      "status": "PENDING" | "SIGNED" | "COMPLETED" | "EXPIRED",
+      "createdAt": "ISO timestamp",
+      "unlocksAt": "ISO timestamp",
+      "signedAt": "ISO timestamp | undefined",
+      "signatureFee": "number",
+      "paymentConfirmed": "boolean",
+      "providerName": "string",
+      "policyType": "string",
+      "psbtHash": "string | undefined",
+      "signedPsbtData": "string (base64) | undefined"
+    }
+  ]
+}
+```
+
+#### `GET /api/signature-requests/provider?providerId={providerId}`
+
+**Get provider's signature requests**
+
+**Response:**
+
+```json
+{
+  "signatureRequests": [
+    {
+      "id": "string",
+      "createdAt": "ISO timestamp",
+      "psbtData": "string (base64)",
+      "unlocksAt": "ISO timestamp",
+      "clientUsername": "string",
+      "servicePolicyType": "string",
+      "perSignatureFee": "string",
+      "status": "PENDING" | "SIGNED"
+    }
+  ]
+}
+```
+
+#### `POST /api/signature-requests/sign`
+
+**Submit signed PSBT**
+
+**Request Body:**
+
+```json
+{
+  "requestId": "string",
+  "signedPsbtData": "string (base64 encoded signed PSBT)"
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": "boolean",
+  "message": "PSBT signed successfully"
+}
+```
+
+#### `POST /api/signature-requests/validate-signed-psbt`
+
+**Validate a signed PSBT**
+
+**Request Body:**
+
+```json
+{
+  "psbtData": "string (base64 encoded PSBT)"
+}
+```
+
+**Response:**
+
+```json
+{
+  "isValid": "boolean",
+  "error": "string | undefined"
+}
+```
+
 ### Payment Processing
+
+#### `POST /api/services/purchase`
+
+**Create Lightning invoice for service purchase**
+
+**Request Body:**
+
+```json
+{
+  "serviceId": "string",
+  "clientId": "string"
+}
+```
+
+**Response:**
+
+```json
+{
+  "paymentRequest": "lnbc...",
+  "paymentHash": "string",
+  "amount": "number (sats)",
+  "description": "string",
+  "expiresAt": "ISO timestamp"
+}
+```
+
+#### `POST /api/services/confirm-payment`
+
+**Confirm Lightning payment**
+
+**Request Body:**
+
+```json
+{
+  "paymentHash": "string"
+}
+```
+
+**Response:**
+
+```json
+{
+  "confirmed": "boolean"
+}
+```
 
 #### `POST /api/webhooks/lnd`
 
@@ -233,18 +486,54 @@ Most endpoints require authentication via username/password + TOTP 2FA token.
 }
 ```
 
+### Lightning Integration
+
+#### `POST /api/lightning/validate-address`
+
+**Validate Lightning address format**
+
+**Request Body:**
+
+```json
+{
+  "lightningAddress": "string"
+}
+```
+
+**Response:**
+
+```json
+{
+  "isValid": "boolean",
+  "error": "string | undefined"
+}
+```
+
+### Utility Endpoints
+
+#### `POST /api/generate-test-data`
+
+**Generate test data for development**
+
+**Response:**
+
+```json
+{
+  "message": "Test data generated successfully"
+}
+```
+
 ## Integration Examples
 
-### Wallet Plugin Integration
+### Client Integration
 
 ```javascript
 // Discover services
-const services = await fetch(
-  "/api/services?policyType=P2TR&sortBy=penalties_asc"
-);
+const servicesResponse = await fetch("/api/services");
+const { services } = await servicesResponse.json();
 
 // Purchase service
-const purchase = await fetch("/api/clients/purchase", {
+const purchaseResponse = await fetch("/api/clients/purchase", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -254,19 +543,20 @@ const purchase = await fetch("/api/clients/purchase", {
   }),
 });
 
+const { paymentRequest, paymentHash } = await purchaseResponse.json();
+
 // Pay Lightning invoice
-const { invoice } = await purchase.json();
 // Handle Lightning payment in wallet
 
-// Request signature
-const signatureRequest = await fetch("/api/signatures", {
+// Create signature request
+const signatureResponse = await fetch("/api/signature-requests/create", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    username: "client123",
-    password: "securepass",
-    twoFactorToken: "123456",
-    psbtData: "base64_psbt",
+    clientId: "client_id",
+    serviceId: "service_id",
+    psbtData: "base64_encoded_psbt",
+    paymentHash: "signature_fee_payment_hash",
   }),
 });
 ```
@@ -275,21 +565,45 @@ const signatureRequest = await fetch("/api/signatures", {
 
 ```javascript
 // Register provider
-const provider = await fetch("/api/providers", {
+const providerResponse = await fetch("/api/providers/register", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     username: "provider123",
     password: "securepass",
-    name: "BitcoinSigningService",
+  }),
+});
+
+// Create service
+const serviceResponse = await fetch("/api/providers/services", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
     policyType: "P2TR",
     xpub: "xpub...",
-    controlSignature: "signature...",
+    masterFingerprint: "12345678",
+    derivationPath: "m/86'/0'/0'",
     initialBackupFee: 50000,
     perSignatureFee: 10000,
     monthlyFee: 25000,
     minTimeDelay: 168,
-    bolt12Offer: "lno...",
+    lightningAddress: "provider@domain.com",
+  }),
+});
+
+// Get signature requests
+const requestsResponse = await fetch(
+  "/api/signature-requests/provider?providerId=provider_id"
+);
+const { signatureRequests } = await requestsResponse.json();
+
+// Sign PSBT
+const signResponse = await fetch("/api/signature-requests/sign", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    requestId: "request_id",
+    signedPsbtData: "base64_encoded_signed_psbt",
   }),
 });
 ```
@@ -325,3 +639,5 @@ Common HTTP status codes:
 - PSBTs are encrypted at rest
 - Lightning payments are non-custodial
 - No sensitive data is logged
+- xpub data is hashed for service listings
+- Full xpub only provided after purchase confirmation

@@ -41,7 +41,6 @@ export async function GET() {
 
     return NextResponse.json({
       xpub,
-      controlSignature: signatureBase64,
       bolt12Offer,
       message,
       messageHash: messageHash.toString("hex"),

@@ -37,3 +37,90 @@ body {
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+/* QR Scanner Styles */
+.qr-scanner {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.qr-video {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+  background-color: #000;
+}
+
+.qr-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.qr-frame {
+  width: 200px;
+  height: 200px;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.qr-overlay p {
+  color: #fff;
+  margin-top: 16px;
+  font-size: 14px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.qr-error {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.qr-error p {
+  color: #dc2626;
+  font-size: 14px;
+  margin: 0;
+}
+
+.qr-scanner-file-upload {
+  text-align: center;
+  padding: 24px;
+}
+
+.file-input {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  background-color: #f9fafb;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.file-input:hover {
+  border-color: #9ca3af;
+  background-color: #f3f4f6;
+}
+
+.qr-scanner-file-upload p {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}

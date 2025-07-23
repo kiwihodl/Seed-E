@@ -15,14 +15,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Fetch signature requests for this client
     const signatureRequests = await prisma.signatureRequest.findMany({
       where: {
-        clientId,
+        clientId: clientId,
       },
       include: {
         service: {
           include: {
-            provider: true,
+            provider: {
+              select: {
+                username: true,
+              },
+            },
           },
         },
       },
@@ -31,23 +36,25 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Transform the data for the frontend
-    const transformedRequests = signatureRequests.map((request) => ({
-      id: request.id,
-      serviceId: request.serviceId,
-      serviceName: request.service.provider.username,
-      status: request.status,
-      createdAt: request.createdAt.toISOString(),
-      expiresAt: request.unlocksAt.toISOString(),
-      penaltyDate: request.unlocksAt.toISOString(), // For compatibility
-      fee: Number(request.signatureFee),
-      providerName: request.service.provider.username,
-      policyType: request.service.policyType,
-      signedAt: request.signedAt?.toISOString(),
-      hasSignedPsbt: !!request.signedPsbtData,
-    }));
+    console.log(
+      `✅ Found ${signatureRequests.length} signature requests for client ${clientId}`
+    );
 
-    return NextResponse.json(transformedRequests);
+    return NextResponse.json({
+      signatureRequests: signatureRequests.map((request) => ({
+        id: request.id,
+        status: request.status,
+        createdAt: request.createdAt,
+        unlocksAt: request.unlocksAt,
+        signedAt: request.signedAt,
+        signatureFee: Number(request.signatureFee),
+        paymentConfirmed: request.paymentConfirmed,
+        providerName: request.service.provider.username,
+        policyType: request.service.policyType,
+        psbtHash: request.psbtHash,
+        signedPsbtData: request.signedPsbtData,
+      })),
+    });
   } catch (error) {
     console.error("❌ Error fetching signature requests:", error);
     return NextResponse.json(

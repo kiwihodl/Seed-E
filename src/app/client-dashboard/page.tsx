@@ -44,13 +44,16 @@ interface PurchasedService {
 
 interface SignatureRequest {
   id: string;
-  serviceId: string;
-  serviceName: string;
   status: "REQUESTED" | "PENDING" | "SIGNED" | "COMPLETED" | "EXPIRED";
   createdAt: string;
-  expiresAt: string;
-  penaltyDate: string;
-  fee: number;
+  unlocksAt: string;
+  signedAt?: string;
+  signatureFee: number;
+  paymentConfirmed: boolean;
+  providerName: string;
+  policyType: string;
+  psbtHash?: string;
+  signedPsbtData?: string;
 }
 
 interface PaymentData {
@@ -83,6 +86,12 @@ export default function ClientDashboard() {
     useState(false);
   const [showSignatureRequestModal, setShowSignatureRequestModal] =
     useState(false);
+  const [
+    showSignatureRequestDetailsModal,
+    setShowSignatureRequestDetailsModal,
+  ] = useState(false);
+  const [selectedSignatureRequest, setSelectedSignatureRequest] =
+    useState<any>(null);
   const [visibleXpubs, setVisibleXpubs] = useState<Set<string>>(new Set());
   const [copiedXpubs, setCopiedXpubs] = useState<Set<string>>(new Set());
   const router = useRouter();
@@ -251,7 +260,8 @@ export default function ClientDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setRequests(data);
+        // The API returns { signatureRequests: [...] }, so extract the array
+        setRequests(data.signatureRequests || []);
       } else {
         // Don't show error for empty requests - this is normal for new clients
         console.log("No signature requests found (normal for new clients)");
@@ -356,7 +366,7 @@ export default function ClientDashboard() {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout | undefined;
     let attempts = 0;
     const maxAttempts = 100;
 
@@ -480,6 +490,11 @@ export default function ClientDashboard() {
     } catch (error) {
       console.error("Failed to copy xpub:", error);
     }
+  };
+
+  const handleViewSignatureRequestDetails = (request: any) => {
+    setSelectedSignatureRequest(request);
+    setShowSignatureRequestDetailsModal(true);
   };
 
   if (loading) {
@@ -799,24 +814,31 @@ export default function ClientDashboard() {
               </div>
             ) : (
               requests.map((request) => (
-                <div key={request.id} className="px-6 py-4">
+                <div
+                  key={request.id}
+                  className="px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => handleViewSignatureRequestDetails(request)}
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {request.serviceName}
+                        {request.providerName} - {request.policyType}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Fee: {formatNumberWithCommas(request.fee)} sats
+                        Fee: {formatNumberWithCommas(request.signatureFee || 0)}{" "}
+                        sats
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Created: {formatDate(request.createdAt)}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Expires: {formatDate(request.expiresAt)}
+                        Unlocks: {formatDate(request.unlocksAt)}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Penalty Date: {formatDate(request.penaltyDate)}
-                      </p>
+                      {request.signedAt && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Signed: {formatDate(request.signedAt)}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <span
@@ -1320,6 +1342,189 @@ export default function ClientDashboard() {
                     Purchase Service
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Signature Request Details Modal */}
+        {showSignatureRequestDetailsModal && selectedSignatureRequest && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Signature Request Details
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowSignatureRequestDetailsModal(false);
+                    setSelectedSignatureRequest(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Provider
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedSignatureRequest.providerName}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Policy Type
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedSignatureRequest.policyType}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Status
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedSignatureRequest.status}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Signature Fee (sats)
+                    </label>
+                    <input
+                      type="text"
+                      value={formatNumberWithCommas(
+                        selectedSignatureRequest.signatureFee || 0
+                      )}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Created
+                    </label>
+                    <input
+                      type="text"
+                      value={formatDate(selectedSignatureRequest.createdAt)}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Unlocks At
+                    </label>
+                    <input
+                      type="text"
+                      value={formatDate(selectedSignatureRequest.unlocksAt)}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                  </div>
+
+                  {selectedSignatureRequest.signedAt && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Signed At
+                      </label>
+                      <input
+                        type="text"
+                        value={formatDate(selectedSignatureRequest.signedAt)}
+                        readOnly
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                  )}
+
+                  {selectedSignatureRequest.psbtHash && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        PSBT Hash
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedSignatureRequest.psbtHash}
+                        readOnly
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {selectedSignatureRequest.signedPsbtData && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Signed PSBT (Base64)
+                    </label>
+                    <textarea
+                      value={selectedSignatureRequest.signedPsbtData}
+                      readOnly
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-mono"
+                    />
+                    {selectedSignatureRequest.status === "SIGNED" && (
+                      <div className="mt-3">
+                        <Button
+                          onClick={() => {
+                            // Create a blob with the PSBT data and download it
+                            const blob = new Blob(
+                              [selectedSignatureRequest.signedPsbtData],
+                              { type: "application/octet-stream" }
+                            );
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `signed-psbt-${selectedSignatureRequest.id}.psbt`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                          }}
+                          variant="primary"
+                          size="sm"
+                        >
+                          Download Signed PSBT
+                        </Button>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Download the signed PSBT to add your signature and
+                          broadcast the transaction
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

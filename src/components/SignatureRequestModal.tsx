@@ -127,7 +127,7 @@ export default function SignatureRequestModal({
 
   // Auto-verify payment when payment modal is open (same pattern as service purchase)
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     let attempts = 0;
     const maxAttempts = 100; // 5 minutes max (100 * 3 seconds)
 

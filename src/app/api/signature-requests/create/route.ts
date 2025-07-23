@@ -57,24 +57,50 @@ export async function POST(request: NextRequest) {
     // Calculate signature fee
     const signatureFee = purchase.service.perSignatureFee;
 
-    // Create the signature request record (only after payment confirmed + PSBT validated)
-    const signatureRequest = await prisma.signatureRequest.create({
-      data: {
-        clientId,
-        serviceId,
-        psbtData,
-        psbtHash: psbtValidation.hash,
+    // Find the existing temporary signature request with this payment hash
+    const existingSignatureRequest = await prisma.signatureRequest.findFirst({
+      where: {
         paymentHash: paymentHash,
-        paymentConfirmed: true, // Payment was already confirmed
-        signatureFee: BigInt(signatureFee),
-        unlocksAt: new Date(
-          Date.now() + purchase.service.minTimeDelay * 60 * 60 * 1000
-        ), // Set based on service's minTimeDelay
-        status: "REQUESTED", // Now waiting for provider to sign
+        clientId: clientId,
+        serviceId: serviceId,
       },
     });
 
-    console.log(`✅ Signature request created: ${signatureRequest.id}`);
+    let signatureRequest;
+
+    if (existingSignatureRequest) {
+      // Update the existing temporary signature request with PSBT data
+      signatureRequest = await prisma.signatureRequest.update({
+        where: { id: existingSignatureRequest.id },
+        data: {
+          psbtData,
+          psbtHash: psbtValidation.hash,
+          paymentConfirmed: true, // Payment was already confirmed
+          status: "PENDING", // PSBT uploaded, waiting for provider to sign
+        },
+      });
+      console.log(
+        `✅ Updated existing signature request: ${signatureRequest.id}`
+      );
+    } else {
+      // Fallback: create a new signature request (shouldn't happen with new flow)
+      signatureRequest = await prisma.signatureRequest.create({
+        data: {
+          clientId,
+          serviceId,
+          psbtData,
+          psbtHash: psbtValidation.hash,
+          paymentHash: paymentHash,
+          paymentConfirmed: true, // Payment was already confirmed
+          signatureFee: BigInt(signatureFee),
+          unlocksAt: new Date(
+            Date.now() + purchase.service.minTimeDelay * 60 * 60 * 1000
+          ), // Set based on service's minTimeDelay
+          status: "PENDING", // PSBT uploaded, waiting for provider to sign
+        },
+      });
+      console.log(`✅ Created new signature request: ${signatureRequest.id}`);
+    }
 
     return NextResponse.json(
       {

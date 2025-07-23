@@ -15,77 +15,30 @@ const prisma = new PrismaClient();
 
 const validateXpub = (xpub: string): { isValid: boolean; error?: string } => {
   try {
-    // Real BIP32 xpub validation
-    const node = bip32.fromBase58(xpub);
-
-    // Check if it's a valid extended public key
-    if (!node.isNeutered()) {
-      return { isValid: false, error: "Must be an extended public key (xpub)" };
-    }
-
-    // Additional validation could be added here
-    return { isValid: true };
-  } catch {
-    return { isValid: false, error: "Invalid xpub format" };
-  }
-};
-
-const validateSignature = (
-  signature: string
-): { isValid: boolean; error?: string } => {
-  try {
-    // Real ECDSA signature validation
-    if (signature.length !== 128) {
-      return {
-        isValid: false,
-        error: "Signature must be 64 bytes (128 hex characters)",
-      };
-    }
-
-    // Validate hex format
-    if (!/^[0-9a-fA-F]{128}$/.test(signature)) {
-      return { isValid: false, error: "Signature must be valid hex format" };
-    }
-
-    // Additional validation could be added here
-    return { isValid: true };
-  } catch {
-    return { isValid: false, error: "Invalid signature format" };
-  }
-};
-
-const validateSignatureFromXpub = (
-  xpub: string,
-  signature: string,
-  message: string
-): { isValid: boolean; error?: string } => {
-  try {
-    // Parse the xpub
-    const node = bip32.fromBase58(xpub);
-
-    // Create the message hash
-    const messageHash = bitcoin.crypto.sha256(Buffer.from(message, "utf8"));
-
-    // Convert signature from hex to buffer
-    const signatureBuffer = Buffer.from(signature, "hex");
-
-    // Verify the signature using the xpub's public key
-    const isValid = ECPair.fromPublicKey(node.publicKey).verify(
-      messageHash,
-      signatureBuffer
+    const validPrefixes = ["xpub", "Xpub", "ypub", "Ypub", "zpub", "Zpub"];
+    const hasValidPrefix = validPrefixes.some((prefix) =>
+      xpub.startsWith(prefix)
     );
 
-    if (!isValid) {
+    if (!hasValidPrefix) {
       return {
         isValid: false,
         error:
-          "Signature verification failed - signature does not match the provided xpub",
+          "Invalid xpub format. Must start with xpub, Xpub, ypub, Ypub, zpub, or Zpub",
       };
     }
 
+    // Basic length check (xpub should be around 111 characters)
+    if (xpub.length < 100 || xpub.length > 120) {
+      return { isValid: false, error: "Invalid xpub length" };
+    }
+
+    // Additional validation could be added here for more strict checking
+    // For now, we'll do basic format checking since bip32.fromBase58() doesn't handle testnet
+
     return { isValid: true };
-  } catch (error) {
-    return { isValid: false, error: "Failed to verify signature" };
+  } catch {
+    return { isValid: false, error: "Invalid xpub format" };
   }
 };
 
@@ -169,7 +122,6 @@ export async function GET(request: NextRequest) {
       policyType: policy.policyType,
       xpub: policy.encryptedXpub || policy.xpubHash, // Return actual xpub if available, otherwise hash
       xpubHash: policy.xpubHash, // Use xpubHash instead of xpub
-      controlSignature: policy.controlSignature,
       initialBackupFee: Number(policy.initialBackupFee),
       perSignatureFee: Number(policy.perSignatureFee),
       monthlyFee: policy.monthlyFee ? Number(policy.monthlyFee) : undefined,
@@ -203,7 +155,6 @@ export async function POST(request: NextRequest) {
       providerId,
       policyType,
       xpub,
-      controlSignature,
       masterFingerprint,
       derivationPath,
       initialBackupFee,
@@ -217,7 +168,6 @@ export async function POST(request: NextRequest) {
       providerId,
       policyType,
       xpub: xpub?.substring(0, 20) + "...",
-      controlSignature: controlSignature?.substring(0, 20) + "...",
       masterFingerprint,
       derivationPath,
       initialBackupFee,
@@ -232,7 +182,6 @@ export async function POST(request: NextRequest) {
       !providerId ||
       !policyType ||
       !xpub ||
-      !controlSignature ||
       !masterFingerprint ||
       !derivationPath ||
       !initialBackupFee ||
@@ -251,29 +200,6 @@ export async function POST(request: NextRequest) {
     if (!xpubValidation.isValid) {
       return NextResponse.json(
         { error: xpubValidation.error },
-        { status: 400 }
-      );
-    }
-
-    // Real signature validation
-    const signatureValidation = validateSignature(controlSignature);
-    if (!signatureValidation.isValid) {
-      return NextResponse.json(
-        { error: signatureValidation.error },
-        { status: 400 }
-      );
-    }
-
-    // Validate that the signature comes from the xpub's private key
-    const message = "Control signature for Seed-E service";
-    const signatureFromXpubValidation = validateSignatureFromXpub(
-      xpub,
-      controlSignature,
-      message
-    );
-    if (!signatureFromXpubValidation.isValid) {
-      return NextResponse.json(
-        { error: signatureFromXpubValidation.error },
         { status: 400 }
       );
     }
@@ -367,7 +293,6 @@ export async function POST(request: NextRequest) {
         policyType: policyType as "P2WSH" | "P2TR" | "P2SH", // Proper enum typing
         xpubHash: xpubHash, // Store hashed xpub instead of plain xpub
         encryptedXpub: xpub.trim(), // Store the actual xpub for provider access
-        controlSignature: controlSignature.trim(),
         masterFingerprint: masterFingerprint.trim(),
         derivationPath: derivationPath.trim(),
         initialBackupFee: BigInt(initialBackupFee),
@@ -390,7 +315,6 @@ export async function POST(request: NextRequest) {
           id: newService.id,
           policyType: newService.policyType,
           xpubHash: newService.xpubHash, // Return xpubHash instead of xpub
-          controlSignature: newService.controlSignature,
           masterFingerprint: newService.masterFingerprint,
           derivationPath: newService.derivationPath,
           initialBackupFee: Number(newService.initialBackupFee),

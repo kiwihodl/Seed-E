@@ -1,16 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `paymentHash` on the `Client` table. All the data in the column will be lost.
-  - You are about to drop the column `serviceId` on the `Client` table. All the data in the column will be lost.
-  - You are about to drop the column `subscriptionExpiresAt` on the `Client` table. All the data in the column will be lost.
-  - You are about to drop the column `xpub` on the `Service` table. All the data in the column will be lost.
-  - A unique constraint covering the columns `[xpubHash]` on the table `Service` will be added. If there are existing duplicate values, this will fail.
-  - Added the required column `xpubHash` to the `Service` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `fee` to the `SignatureRequest` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `serviceId` to the `SignatureRequest` table without a default value. This is not possible if the table is not empty.
-
-*/
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
 
@@ -37,10 +24,6 @@ ALTER TABLE "Service" DROP COLUMN "xpub",
 ADD COLUMN     "encryptedXpub" TEXT,
 ADD COLUMN     "isPurchased" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "xpubHash" TEXT NOT NULL;
-
--- AlterTable
-ALTER TABLE "SignatureRequest" ADD COLUMN     "fee" BIGINT NOT NULL,
-ADD COLUMN     "serviceId" TEXT NOT NULL;
 
 -- CreateTable
 CREATE TABLE "ServicePurchase" (
@@ -85,9 +68,6 @@ ALTER TABLE "ServicePurchase" ADD CONSTRAINT "ServicePurchase_clientId_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "ServicePurchase" ADD CONSTRAINT "ServicePurchase_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SignatureRequest" ADD CONSTRAINT "SignatureRequest_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "SubscriptionRequest" ADD CONSTRAINT "SubscriptionRequest_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

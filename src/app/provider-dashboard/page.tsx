@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
+// import Tabs from "@/components/Tabs";
+import ImportKeyModal from "@/components/ImportKeyModal";
+import Modal from "@/components/Modal";
 import {
   validateUserType,
   getStoredUserInfo,
@@ -17,6 +20,7 @@ interface SignatureRequest {
   clientUsername: string;
   servicePolicyType: string;
   perSignatureFee: string;
+  status?: string;
 }
 
 interface ServicePolicy {
@@ -24,7 +28,6 @@ interface ServicePolicy {
   policyType: string;
   xpub: string;
   xpubHash: string;
-  controlSignature: string;
   initialBackupFee: number;
   perSignatureFee: number;
   monthlyFee?: number;
@@ -50,12 +53,17 @@ export default function ProviderDashboard() {
   const [selectedRequest, setSelectedRequest] =
     useState<SignatureRequest | null>(null);
   const [signedPsbt, setSignedPsbt] = useState("");
+  const [signedPsbtFile, setSignedPsbtFile] = useState<File | null>(null);
+  const [signedPsbtValidation, setSignedPsbtValidation] = useState<{
+    isValid: boolean;
+    error?: string;
+  }>({ isValid: false });
+  const [isDragOver, setIsDragOver] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showAddKey, setShowAddKey] = useState(false);
   const [addKeyForm, setAddKeyForm] = useState({
     policyType: "",
     xpub: "",
-    controlSignature: "",
     masterFingerprint: "",
     derivationPath: "",
     initialBackupFee: "",
@@ -74,26 +82,47 @@ export default function ProviderDashboard() {
   const [lightningAddressError, setLightningAddressError] = useState(""); // Add Lightning address error state
   const [lightningAddressValidating, setLightningAddressValidating] =
     useState(false); // Add validation state
-  const [signatureError, setSignatureError] = useState(""); // Add signature error state
-  const [signatureValidating, setSignatureValidating] = useState(false); // Add signature validation state
   const [selectedKeyDetails, setSelectedKeyDetails] =
     useState<ServicePolicy | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("manual");
+  const [showImportModal, setShowImportModal] = useState(false); // Set back to false
+  const [isCopied, setIsCopied] = useState(false);
+  const [showSignRequestModal, setShowSignRequestModal] = useState(false);
+  const [xpubValidating, setXpubValidating] = useState(false);
+  const [xpubTimer, setXpubTimer] = useState<NodeJS.Timeout | null>(null);
+  const [showSignModal, setShowSignModal] = useState(false);
+  const [signingRequest, setSigningRequest] = useState<SignatureRequest | null>(
+    null
+  );
+
+  // Debug logging for import modal
+  console.log(
+    "🔍 ProviderDashboard render - showImportModal:",
+    showImportModal
+  );
+
+  // Monitor showImportModal changes
+  useEffect(() => {
+    console.log("🔍 showImportModal changed to:", showImportModal);
+  }, [showImportModal]);
+
+  // Monitor activeTab changes
+  useEffect(() => {
+    console.log("🔍 activeTab changed to:", activeTab);
+  }, [activeTab]);
+
   const router = useRouter();
 
   // Debounce timer for time delay validation
-  const [timeDelayTimer, setTimeDelayTimer] = useState<NodeJS.Timeout | null>(
-    null
-  );
+  const [timeDelayTimer, setTimeDelayTimer] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   // Debounce timer for Lightning address validation
-  const [lightningAddressTimer, setLightningAddressTimer] =
-    useState<NodeJS.Timeout | null>(null);
-
-  // Debounce timer for signature validation
-  const [signatureTimer, setSignatureTimer] = useState<NodeJS.Timeout | null>(
-    null
-  );
+  const [lightningAddressTimer, setLightningAddressTimer] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   // Get current theme state from localStorage
   const getCurrentTheme = () => {
@@ -151,18 +180,81 @@ export default function ProviderDashboard() {
     }
   };
 
-  const validateXpub = (value: string) => {
-    // Basic xpub validation
-    if (!value.startsWith("xpub") && !value.startsWith("zpub")) {
-      setXpubError("Xpub must start with 'xpub' or 'zpub'");
-      return false;
+  const handleXpubChange = (value: string) => {
+    // Clear any existing timer
+    if (xpubTimer) {
+      clearTimeout(xpubTimer);
     }
-    if (value.length < 100) {
-      setXpubError("Xpub appears to be too short");
-      return false;
+
+    // Update the form
+    setAddKeyForm({
+      ...addKeyForm,
+      xpub: value,
+    });
+
+    // Clear error if field is empty
+    if (!value) {
+      setXpubError("");
+      setXpubValidating(false);
+      return;
     }
+
+    // Basic xpub format validation
+    const validPrefixes = ["xpub", "Xpub", "ypub", "Ypub", "zpub", "Zpub"];
+    const hasValidPrefix = validPrefixes.some((prefix) =>
+      value.startsWith(prefix)
+    );
+
+    if (!hasValidPrefix) {
+      setXpubError(
+        "Xpub must start with 'xpub', 'Xpub', 'ypub', 'Ypub', 'zpub', or 'Zpub'"
+      );
+      setXpubValidating(false);
+      return;
+    }
+
+    // Set validating state
+    setXpubValidating(true);
     setXpubError("");
-    return true;
+
+    // Debounce the backend validation
+    const timer = setTimeout(async () => {
+      try {
+        console.log("🔍 Validating xpub:", value.substring(0, 20) + "...");
+
+        const response = await fetch("/api/providers/check-xpub", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            xpub: value,
+            providerId: getStoredUserInfo().userId,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("✅ Xpub validation result:", data);
+          if (data.isValid) {
+            console.log("🎯 Clearing xpub error - validation successful");
+            setXpubError("");
+          } else {
+            console.log("❌ Setting xpub error:", data.error);
+            setXpubError(data.error || "Invalid xpub format");
+          }
+        } else {
+          console.log("❌ Xpub validation failed");
+          setXpubError("Failed to validate xpub. Please try again.");
+        }
+      } catch (error) {
+        console.error("❌ Xpub validation error:", error);
+        setXpubError("Failed to validate xpub. Please try again.");
+      }
+      setXpubValidating(false);
+    }, 300); // Wait 300ms after user stops typing
+
+    setXpubTimer(timer);
   };
 
   const handleLightningAddressChange = (value: string) => {
@@ -184,10 +276,12 @@ export default function ProviderDashboard() {
       return;
     }
 
-    // Basic format validation
-    if (!value.includes("@")) {
+    // Basic lightning address validation
+    const lightningAddressRegex =
+      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!lightningAddressRegex.test(value)) {
       setLightningAddressError(
-        "Lightning address must contain '@' (e.g., user@getalby.com)"
+        "Please enter a valid lightning address (e.g., user@domain.com)"
       );
       setLightningAddressValidating(false);
       return;
@@ -197,34 +291,43 @@ export default function ProviderDashboard() {
     setLightningAddressValidating(true);
     setLightningAddressError("");
 
-    // Debounce the validation - faster for pasting
+    // Debounce the backend validation
     const timer = setTimeout(async () => {
       try {
+        console.log("🔍 Validating lightning address:", value);
+
         const response = await fetch("/api/lightning/validate-address", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ lightningAddress: value }),
+          body: JSON.stringify({
+            lightningAddress: value,
+          }),
         });
 
         if (response.ok) {
           const data = await response.json();
-          if (data.supportsLnurlVerify) {
+          console.log("✅ Lightning address validation result:", data);
+          if (data.isValid) {
+            console.log(
+              "🎯 Clearing lightning address error - validation successful"
+            );
             setLightningAddressError("");
           } else {
-            setLightningAddressError(
-              "This Lightning address doesn't support LNURL verify. Please use a Lightning address from a provider that supports LNURL verify (e.g., Alby, Voltage, etc.)."
-            );
+            console.log("❌ Setting lightning address error:", data.error);
+            setLightningAddressError(data.error || "Invalid lightning address");
           }
         } else {
+          console.log("❌ Lightning address validation failed");
           setLightningAddressError(
-            "Failed to validate Lightning address. Please try again."
+            "Failed to validate lightning address. Please try again."
           );
         }
       } catch (error) {
+        console.error("❌ Lightning address validation error:", error);
         setLightningAddressError(
-          "Failed to validate Lightning address. Please try again."
+          "Failed to validate lightning address. Please try again."
         );
       }
       setLightningAddressValidating(false);
@@ -233,172 +336,20 @@ export default function ProviderDashboard() {
     setLightningAddressTimer(timer);
   };
 
-  const handleXpubChange = (value: string) => {
-    // Update the form
-    setAddKeyForm({
-      ...addKeyForm,
-      xpub: value,
-    });
-
-    // Clear error if field is empty
-    if (!value) {
-      setXpubError("");
-      setXpubDuplicateError("");
-      return;
-    }
-
-    // Validate xpub format
-    validateXpub(value);
-
-    // Check for duplicates (debounced)
-    if (value.length > 10) {
-      setTimeout(async () => {
-        try {
-          const response = await fetch(
-            `/api/providers/check-xpub?xpub=${encodeURIComponent(
-              value
-            )}&providerId=${localStorage.getItem("userId")}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            if (data.isDuplicate) {
-              setXpubDuplicateError("This xpub is already registered");
-            } else {
-              setXpubDuplicateError("");
-            }
-          }
-        } catch (error) {
-          console.error("Error checking xpub duplicate:", error);
-        }
-      }, 500);
-    }
-  };
-
-  const handleSignatureChange = (value: string) => {
-    // Clear any existing timer
-    if (signatureTimer) {
-      clearTimeout(signatureTimer);
-    }
-
-    // Update the form
-    setAddKeyForm({
-      ...addKeyForm,
-      controlSignature: value,
-    });
-
-    // Clear error if field is empty
-    if (!value) {
-      setSignatureError("");
-      setSignatureValidating(false);
-      return;
-    }
-
-    // Basic signature format validation
-    if (value.length !== 128) {
-      setSignatureError("Signature must be 64 bytes (128 hex characters)");
-      setSignatureValidating(false);
-      return;
-    }
-
-    if (!/^[0-9a-fA-F]{128}$/.test(value)) {
-      setSignatureError("Signature must be valid hex format");
-      setSignatureValidating(false);
-      return;
-    }
-
-    // Set validating state
-    setSignatureValidating(true);
-    setSignatureError("");
-
-    // Debounce the backend validation
-    const timer = setTimeout(async () => {
-      try {
-        // Make sure we have both xpub and signature
-        if (!addKeyForm.xpub) {
-          setSignatureError("Xpub is required for signature validation");
-          setSignatureValidating(false);
-          return;
-        }
-
-        console.log("🔍 Validating signature:", {
-          xpub: addKeyForm.xpub.substring(0, 20) + "...",
-          signature: value.substring(0, 20) + "...",
-        });
-
-        const response = await fetch("/api/providers/validate-signature", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            xpub: addKeyForm.xpub,
-            signature: value,
-            message: "Control signature for Seed-E service",
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("✅ Signature validation result:", data);
-          if (data.isValid) {
-            console.log("🎯 Clearing signature error - validation successful");
-            setSignatureError("");
-          } else {
-            console.log("❌ Setting signature error:", data.error);
-            setSignatureError(data.error || "Signature verification failed");
-          }
-        } else {
-          console.log("❌ Signature validation failed");
-          setSignatureError("Failed to validate signature. Please try again.");
-        }
-      } catch (error) {
-        console.error("❌ Signature validation error:", error);
-        setSignatureError("Failed to validate signature. Please try again.");
-      }
-      setSignatureValidating(false);
-    }, 300); // Wait 300ms after user stops typing
-
-    setSignatureTimer(timer);
-  };
-
   // Check if form is valid for submission
   const isFormValid = () => {
-    const isValid =
-      addKeyForm.policyType &&
+    return (
       addKeyForm.xpub &&
-      addKeyForm.controlSignature &&
+      !xpubError &&
       addKeyForm.masterFingerprint &&
       addKeyForm.derivationPath &&
       addKeyForm.initialBackupFee &&
       addKeyForm.perSignatureFee &&
       addKeyForm.minTimeDelayDays &&
       addKeyForm.lightningAddress &&
-      !xpubError &&
-      !xpubDuplicateError &&
       !lightningAddressError &&
-      !signatureError &&
-      !timeDelayError &&
-      !lightningAddressValidating && // Don't allow submission while validating
-      !signatureValidating; // Don't allow submission while validating signature
-
-    console.log("🔍 Form validation state:", {
-      hasPolicyType: !!addKeyForm.policyType,
-      hasXpub: !!addKeyForm.xpub,
-      hasSignature: !!addKeyForm.controlSignature,
-      hasFees: !!(addKeyForm.initialBackupFee && addKeyForm.perSignatureFee),
-      hasTimeDelay: !!addKeyForm.minTimeDelayDays,
-      hasLightningAddress: !!addKeyForm.lightningAddress,
-      xpubError: !!xpubError,
-      xpubDuplicateError: !!xpubDuplicateError,
-      lightningAddressError: !!lightningAddressError,
-      signatureError: !!signatureError,
-      timeDelayError: !!timeDelayError,
-      lightningAddressValidating: !!lightningAddressValidating,
-      signatureValidating: !!signatureValidating,
-      isValid,
-    });
-
-    return isValid;
+      !addingKey
+    );
   };
 
   // Handle time delay change with debounce
@@ -500,7 +451,18 @@ export default function ProviderDashboard() {
 
       if (response.ok) {
         const data = await response.json();
-        setRequests(data);
+        // Map the response to match our interface
+        const mappedRequests = data.map((request: any) => ({
+          id: request.id,
+          createdAt: request.createdAt,
+          psbtData: request.psbtData || "",
+          unlocksAt: request.unlocksAt,
+          clientUsername: request.clientName,
+          servicePolicyType: request.policyType,
+          perSignatureFee: request.fee.toString(),
+          status: request.status,
+        }));
+        setRequests(mappedRequests);
       } else {
         // Don't show error for empty requests - this is normal for new providers
         console.log("No signature requests found (normal for new providers)");
@@ -547,7 +509,7 @@ export default function ProviderDashboard() {
       setAddingKey(false);
       return;
     }
-    validateXpub(addKeyForm.xpub);
+    handleXpubChange(addKeyForm.xpub);
     if (xpubError) {
       setAddingKey(false);
       return;
@@ -569,7 +531,7 @@ export default function ProviderDashboard() {
           providerId: providerId,
           policyType: addKeyForm.policyType,
           xpub: addKeyForm.xpub.trim(),
-          controlSignature: addKeyForm.controlSignature.trim(),
+
           masterFingerprint: addKeyForm.masterFingerprint.trim(),
           derivationPath: addKeyForm.derivationPath.trim(),
           initialBackupFee: parseInt(
@@ -591,7 +553,6 @@ export default function ProviderDashboard() {
         setAddKeyForm({
           policyType: "",
           xpub: "",
-          controlSignature: "",
           masterFingerprint: "",
           derivationPath: "",
           initialBackupFee: "",
@@ -611,7 +572,7 @@ export default function ProviderDashboard() {
         if (data.error && data.error.includes("LNURL verify")) {
           setLightningAddressError(data.error);
         } else if (data.error && data.error.includes("signature")) {
-          setSignatureError(data.error);
+          setError(data.error);
         } else {
           setError(data.error || "Failed to add key");
         }
@@ -623,9 +584,90 @@ export default function ProviderDashboard() {
     }
   };
 
+  const handleSignedPsbtFileChange = async (file: File) => {
+    setSignedPsbtFile(file);
+    setSignedPsbt("");
+
+    try {
+      const base64Data = await fileToBase64(file);
+      setSignedPsbt(base64Data);
+
+      // Validate the PSBT contains signatures
+      const response = await fetch(
+        "/api/signature-requests/validate-signed-psbt",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ psbtData: base64Data }),
+        }
+      );
+
+      const result = await response.json();
+      setSignedPsbtValidation({
+        isValid: result.isValid,
+        error: result.error,
+      });
+    } catch (error) {
+      setSignedPsbtValidation({
+        isValid: false,
+        error: "Failed to read file",
+      });
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (
+        file.name.endsWith(".psbt") ||
+        file.type === "application/octet-stream"
+      ) {
+        handleSignedPsbtFileChange(file);
+      } else {
+        setSignedPsbtValidation({
+          isValid: false,
+          error: "Please select a .psbt file",
+        });
+      }
+    }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix (e.g., "data:application/octet-stream;base64,")
+        const base64 = result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSignRequest = async () => {
-    if (!selectedRequest || !signedPsbt.trim()) {
+    if (!signingRequest || !signedPsbt.trim()) {
       setError("Please select a request and provide the signed PSBT");
+      return;
+    }
+
+    if (!signedPsbtValidation.isValid) {
+      setError("Please upload a valid signed PSBT");
       return;
     }
 
@@ -645,7 +687,7 @@ export default function ProviderDashboard() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          signatureRequestId: selectedRequest.id,
+          signatureRequestId: signingRequest.id,
           signedPsbtData: signedPsbt.trim(),
           providerId,
         }),
@@ -654,9 +696,12 @@ export default function ProviderDashboard() {
       if (response.ok) {
         setError("");
         setSignedPsbt("");
-        setSelectedRequest(null);
+        setSignedPsbtFile(null);
+        setSignedPsbtValidation({ isValid: false });
+        setShowSignModal(false);
+        setSigningRequest(null);
         fetchRequests();
-        alert("PSBT signed successfully!");
+        // No alert - just update the UI
       } else {
         const errorData = await response.json();
         setError(errorData.error || "Failed to submit signed PSBT");
@@ -666,6 +711,15 @@ export default function ProviderDashboard() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openSignModal = (request: SignatureRequest) => {
+    setSigningRequest(request);
+    setShowSignModal(true);
+    setSignedPsbt("");
+    setSignedPsbtFile(null);
+    setSignedPsbtValidation({ isValid: false });
+    setError("");
   };
 
   const handleLogout = () => {
@@ -686,11 +740,48 @@ export default function ProviderDashboard() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleDateString();
   };
 
   const isUnlocked = (unlocksAt: string) => {
-    return new Date(unlocksAt) <= new Date();
+    return new Date() >= new Date(unlocksAt);
+  };
+
+  // Function to infer policy type from derivation path
+  const inferPolicyTypeFromDerivationPath = (
+    derivationPath: string
+  ): string => {
+    if (!derivationPath) return "";
+
+    // Remove any whitespace and convert to lowercase for comparison
+    const path = derivationPath.trim().toLowerCase();
+
+    // Check for different derivation path patterns
+    if (path.includes("84'")) {
+      return "P2WSH"; // Native SegWit
+    } else if (path.includes("86'")) {
+      return "P2TR"; // Taproot
+    } else if (path.includes("49'")) {
+      return "P2SH"; // Legacy SegWit
+    } else if (path.includes("44'")) {
+      return "P2SH"; // Legacy (treat as P2SH for compatibility)
+    }
+
+    // Default to P2WSH if no clear pattern is found
+    return "P2WSH";
+  };
+
+  // Update derivation path change handler to automatically set policy type
+  const handleDerivationPathChange = (value: string) => {
+    console.log("🔍 handleDerivationPathChange called with:", value);
+    const policyType = inferPolicyTypeFromDerivationPath(value);
+    console.log("🔍 Inferred policy type:", policyType);
+    setAddKeyForm({
+      ...addKeyForm,
+      derivationPath: value,
+      policyType: policyType,
+    });
+    console.log("🔍 Updated form with policy type:", policyType);
   };
 
   if (loading) {
@@ -863,425 +954,418 @@ export default function ProviderDashboard() {
           </div>
 
           {showAddKey && (
-            <form onSubmit={handleAddKey} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Policy Type *
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={addKeyForm.policyType}
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm dark:shadow-none">
+              {/* Form Content */}
+              <form onSubmit={handleAddKey} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Initial Backup Fee (sats) *
+                    </label>
+                    <input
+                      type="text"
+                      value={formatNumberWithCommas(
+                        addKeyForm.initialBackupFee
+                      )}
                       onChange={(e) =>
+                        handleNumberInput(e.target.value, "initialBackupFee")
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                      placeholder="50,000"
+                      required
+                      onBlur={() =>
                         setAddKeyForm({
                           ...addKeyForm,
-                          policyType: e.target.value,
+                          initialBackupFee: formatNumberWithCommas(
+                            addKeyForm.initialBackupFee
+                          ),
                         })
                       }
-                      className="w-full px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] appearance-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Per Signature Fee (sats) *
+                    </label>
+                    <input
+                      type="text"
+                      value={formatNumberWithCommas(addKeyForm.perSignatureFee)}
+                      onChange={(e) =>
+                        handleNumberInput(e.target.value, "perSignatureFee")
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                      placeholder="1,000"
                       required
-                    >
-                      <option value="">Select a policy type...</option>
-                      <option value="P2WSH">P2WSH (Native SegWit)</option>
-                      <option value="P2TR">P2TR (Taproot)</option>
-                      <option value="P2SH">P2SH (Legacy SegWit)</option>
-                    </select>
-                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                      <svg
-                        className="w-5 h-5 text-gray-500 dark:text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
+                      onBlur={() =>
+                        setAddKeyForm({
+                          ...addKeyForm,
+                          perSignatureFee: formatNumberWithCommas(
+                            addKeyForm.perSignatureFee
+                          ),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Monthly Fee (sats) - Optional
+                    </label>
+                    <input
+                      type="text"
+                      value={formatNumberWithCommas(addKeyForm.monthlyFee)}
+                      onChange={(e) =>
+                        handleNumberInput(e.target.value, "monthlyFee")
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                      placeholder="25,000"
+                      min="0"
+                      onBlur={() =>
+                        setAddKeyForm({
+                          ...addKeyForm,
+                          monthlyFee: formatNumberWithCommas(
+                            addKeyForm.monthlyFee
+                          ),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Time Delay (days) *
+                    </label>
+                    <input
+                      type="text"
+                      value={addKeyForm.minTimeDelayDays}
+                      onChange={(e) => handleTimeDelayChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                      placeholder="7"
+                      required
+                      maxLength={3}
+                      onBlur={() =>
+                        validateTimeDelay(addKeyForm.minTimeDelayDays)
+                      }
+                    />
+                    {timeDelayError && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        {timeDelayError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Initial Backup Fee (sats) *
-                  </label>
-                  <input
-                    type="text"
-                    value={formatNumberWithCommas(addKeyForm.initialBackupFee)}
-                    onChange={(e) =>
-                      handleNumberInput(e.target.value, "initialBackupFee")
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="50,000"
-                    required
-                    onBlur={() =>
-                      setAddKeyForm({
-                        ...addKeyForm,
-                        initialBackupFee: formatNumberWithCommas(
-                          addKeyForm.initialBackupFee
-                        ),
-                      })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Per Signature Fee (sats) *
-                  </label>
-                  <input
-                    type="text"
-                    value={formatNumberWithCommas(addKeyForm.perSignatureFee)}
-                    onChange={(e) =>
-                      handleNumberInput(e.target.value, "perSignatureFee")
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="1,000"
-                    required
-                    onBlur={() =>
-                      setAddKeyForm({
-                        ...addKeyForm,
-                        perSignatureFee: formatNumberWithCommas(
-                          addKeyForm.perSignatureFee
-                        ),
-                      })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Monthly Fee (sats) - Optional
-                  </label>
-                  <input
-                    type="text"
-                    value={formatNumberWithCommas(addKeyForm.monthlyFee)}
-                    onChange={(e) =>
-                      handleNumberInput(e.target.value, "monthlyFee")
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="25,000"
-                    min="0"
-                    onBlur={() =>
-                      setAddKeyForm({
-                        ...addKeyForm,
-                        monthlyFee: formatNumberWithCommas(
-                          addKeyForm.monthlyFee
-                        ),
-                      })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Time Delay (days) *
-                  </label>
-                  <input
-                    type="text"
-                    value={addKeyForm.minTimeDelayDays}
-                    onChange={(e) => handleTimeDelayChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="7"
-                    required
-                    maxLength={3}
-                    onBlur={() =>
-                      validateTimeDelay(addKeyForm.minTimeDelayDays)
-                    }
-                  />
-                  {timeDelayError && (
-                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                      {timeDelayError}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Extended Public Key (xpub/zpub) *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={addKeyForm.xpub}
-                    onChange={(e) => handleXpubChange(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="xpub..."
-                    required
-                    readOnly
-                    onBlur={() => validateXpub(addKeyForm.xpub)}
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const text = await navigator.clipboard.readText();
-                        setAddKeyForm({ ...addKeyForm, xpub: text });
-                        handleXpubChange(text);
-                      } catch (err) {
-                        console.error("Failed to read clipboard:", err);
-                      }
-                    }}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    title="Paste from clipboard"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                {/* Tabs - Right before xpub section */}
+                <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+                  <nav className="-mb-px flex space-x-8">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log("🔍 Manual tab clicked");
+                        setActiveTab("manual");
+                      }}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === "manual"
+                          ? "border-[#FF9500] text-[#FF9500]"
+                          : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
+                      }`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                {xpubError && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    {xpubError}
-                  </p>
-                )}
-                {xpubDuplicateError && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    {xpubDuplicateError}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Must start with &apos;xpub&apos; or &apos;zpub&apos;. Click
-                  the paste icon to paste from clipboard.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Control Signature (Base64) *
-                </label>
-                <div className="relative">
-                  <textarea
-                    value={addKeyForm.controlSignature}
-                    onChange={(e) => handleSignatureChange(e.target.value)}
-                    className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
-                      signatureError
-                        ? "border-red-500 dark:border-red-400"
-                        : "border-gray-300 dark:border-gray-600"
-                    }`}
-                    rows={4}
-                    placeholder="Paste the control signature here..."
-                    required
-                    readOnly
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const text = await navigator.clipboard.readText();
-                        handleSignatureChange(text);
-                      } catch (err) {
-                        console.error("Failed to read clipboard:", err);
-                      }
-                    }}
-                    className="absolute right-2 top-2 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    title="Paste from clipboard"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      Manual Entry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log(
+                          "🔍 Import tab clicked - setting activeTab to import"
+                        );
+                        setActiveTab("import");
+                        console.log("🔍 About to set showImportModal to true");
+                        setShowImportModal(true);
+                        console.log("🔍 showImportModal should now be true");
+                        console.log(
+                          "🔍 Current showImportModal state:",
+                          showImportModal
+                        );
+                      }}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === "import"
+                          ? "border-[#FF9500] text-[#FF9500]"
+                          : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
+                      }`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                      Import
+                    </button>
+                  </nav>
+                </div>
+
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Extended Public Key (xpub/zpub) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={addKeyForm.xpub}
+                        onChange={(e) => handleXpubChange(e.target.value)}
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                        placeholder="xpub..."
+                        required
+                        readOnly
+                        onBlur={() => handleXpubChange(addKeyForm.xpub)}
                       />
-                    </svg>
-                  </button>
-                </div>
-                {signatureError && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    {signatureError}
-                  </p>
-                )}
-                {signatureValidating && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Validating signature...
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Click the paste icon to paste from clipboard.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Master Fingerprint *
-                  </label>
-                  <input
-                    type="text"
-                    value={addKeyForm.masterFingerprint}
-                    onChange={(e) =>
-                      setAddKeyForm({
-                        ...addKeyForm,
-                        masterFingerprint: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="97046043"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    The master fingerprint (e.g., 97046043) for client wallet
-                    setup.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Derivation Path *
-                  </label>
-                  <input
-                    type="text"
-                    value={addKeyForm.derivationPath}
-                    onChange={(e) =>
-                      setAddKeyForm({
-                        ...addKeyForm,
-                        derivationPath: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
-                    placeholder="m/48'/0'/0'/2'"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    The derivation path (e.g., m/48'/0'/0'/2') for client wallet
-                    setup.
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Lightning Address *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={addKeyForm.lightningAddress}
-                    onChange={(e) =>
-                      handleLightningAddressChange(e.target.value)
-                    }
-                    className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
-                      lightningAddressError
-                        ? "border-red-500 dark:border-red-400"
-                        : "border-gray-300 dark:border-gray-600"
-                    }`}
-                    placeholder="user@getalby.com"
-                    required
-                    readOnly
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const text = await navigator.clipboard.readText();
-                        handleLightningAddressChange(text);
-                      } catch (err) {
-                        console.error("Failed to read clipboard:", err);
-                      }
-                    }}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    title="Paste from clipboard"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                {lightningAddressError && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    {lightningAddressError}
-                  </p>
-                )}
-                {lightningAddressValidating && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Validating...
-                  </p>
-                )}
-                {!lightningAddressError &&
-                  !lightningAddressValidating &&
-                  addKeyForm.lightningAddress && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const text = await navigator.clipboard.readText();
+                            setAddKeyForm({ ...addKeyForm, xpub: text });
+                            handleXpubChange(text);
+                          } catch (err) {
+                            console.error("Failed to read clipboard:", err);
+                          }
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                        title="Paste from clipboard"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    {xpubError && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        {xpubError}
+                      </p>
+                    )}
+                    {xpubDuplicateError && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        {xpubDuplicateError}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Recommended providers: Alby (@getalby.com), Voltage
-                      (@voltage.com), or any provider that supports LNURL
-                      verify. Example: highlyregarded@getalby.com
+                      Must start with &apos;xpub&apos;, &apos;Xpub&apos;,
+                      &apos;ypub&apos;, &apos;Ypub&apos;, &apos;zpub&apos;, or
+                      &apos;Zpub&apos;. Click the paste icon to paste from
+                      clipboard.
                     </p>
-                  )}
-              </div>
+                  </div>
 
-              <div className="flex justify-end space-x-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="md"
-                  onClick={() => {
-                    setAddKeyForm({
-                      policyType: "",
-                      xpub: "",
-                      controlSignature: "",
-                      masterFingerprint: "",
-                      derivationPath: "",
-                      initialBackupFee: "",
-                      perSignatureFee: "",
-                      monthlyFee: "",
-                      minTimeDelayDays: "",
-                      lightningAddress: "",
-                    });
-                    setTimeDelayError("");
-                    setXpubError("");
-                    setXpubDuplicateError("");
-                    setLightningAddressError("");
-                    setSignatureError("");
-                    setLightningAddressValidating(false);
-                    if (lightningAddressTimer) {
-                      clearTimeout(lightningAddressTimer);
-                      setLightningAddressTimer(null);
-                    }
-                  }}
-                >
-                  Clear Form
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                  loading={addingKey}
-                  disabled={addingKey || !isFormValid()}
-                >
-                  Add Key
-                </Button>
-              </div>
-            </form>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Master Fingerprint *
+                      </label>
+                      <input
+                        type="text"
+                        value={addKeyForm.masterFingerprint}
+                        onChange={(e) =>
+                          setAddKeyForm({
+                            ...addKeyForm,
+                            masterFingerprint: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                        placeholder="97046043"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        The master fingerprint (e.g., 97046043) for client
+                        wallet setup.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Derivation Path *
+                      </label>
+                      <input
+                        type="text"
+                        value={addKeyForm.derivationPath}
+                        onChange={(e) =>
+                          handleDerivationPathChange(e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                        placeholder="m/48'/0'/0'/2'"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        The derivation path (e.g., m/48'/0'/0'/2') for client
+                        wallet setup.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Lightning Address *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={addKeyForm.lightningAddress}
+                        onChange={(e) =>
+                          handleLightningAddressChange(e.target.value)
+                        }
+                        className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500] ${
+                          lightningAddressError
+                            ? "border-red-500 dark:border-red-400"
+                            : "border-gray-300 dark:border-gray-600"
+                        }`}
+                        placeholder="user@getalby.com"
+                        required
+                        readOnly
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const text = await navigator.clipboard.readText();
+                            handleLightningAddressChange(text);
+                          } catch (err) {
+                            console.error("Failed to read clipboard:", err);
+                          }
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                        title="Paste from clipboard"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    {lightningAddressError && (
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        {lightningAddressError}
+                      </p>
+                    )}
+                    {lightningAddressValidating && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Validating...
+                      </p>
+                    )}
+                    {!lightningAddressError &&
+                      !lightningAddressValidating &&
+                      addKeyForm.lightningAddress && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Recommended providers: Alby (@getalby.com), Voltage
+                          (@voltage.com), or any provider that supports LNURL
+                          verify. Example: highlyregarded@getalby.com
+                        </p>
+                      )}
+                  </div>
+
+                  <div className="flex justify-end space-x-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="md"
+                      onClick={() => {
+                        setAddKeyForm({
+                          policyType: "",
+                          xpub: "",
+                          masterFingerprint: "",
+                          derivationPath: "",
+                          initialBackupFee: "",
+                          perSignatureFee: "",
+                          monthlyFee: "",
+                          minTimeDelayDays: "",
+                          lightningAddress: "",
+                        });
+                        setTimeDelayError("");
+                        setXpubError("");
+                        setXpubDuplicateError("");
+                        setLightningAddressError("");
+                        setLightningAddressValidating(false);
+                        if (lightningAddressTimer) {
+                          clearTimeout(lightningAddressTimer);
+                          setLightningAddressTimer(null);
+                        }
+                      }}
+                    >
+                      Clear Form
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="md"
+                      loading={addingKey}
+                      disabled={addingKey || !isFormValid()}
+                    >
+                      Add Key
+                    </Button>
+                  </div>
+                </>
+              </form>
+            </div>
           )}
+
+          {/* Import Key Modal */}
+          <Modal
+            visible={showImportModal}
+            close={() => setShowImportModal(false)}
+            showCloseIcon={false}
+            Content={() => (
+              <ImportKeyModal
+                onImport={(keyData) => {
+                  // Handle imported key data and populate form
+                  console.log("🔍 Imported key data:", keyData);
+                  console.log("🔍 Key data type:", typeof keyData);
+                  console.log("🔍 Key data keys:", Object.keys(keyData));
+                  console.log("🔍 Xpub value:", keyData.xpub);
+                  console.log(
+                    "🔍 Master fingerprint:",
+                    keyData.masterFingerprint
+                  );
+                  console.log("🔍 Derivation path:", keyData.derivationPath);
+
+                  const derivationPath =
+                    keyData.derivationPath || "m/84'/0'/0'";
+                  const policyType =
+                    inferPolicyTypeFromDerivationPath(derivationPath);
+
+                  setAddKeyForm({
+                    ...addKeyForm,
+                    xpub: keyData.xpub || "",
+                    masterFingerprint: keyData.masterFingerprint || "",
+                    derivationPath: derivationPath,
+                    policyType: policyType,
+                    // Leave service configuration fields empty for manual input
+                    initialBackupFee: "",
+                    perSignatureFee: "",
+                    monthlyFee: "",
+                    minTimeDelayDays: "",
+                    lightningAddress: "",
+                  });
+                  setShowImportModal(false);
+                  setActiveTab("manual");
+                  setShowAddKey(true); // Show the form with populated data
+                }}
+                onClose={() => setShowImportModal(false)}
+              />
+            )}
+          />
 
           {/* Existing Keys */}
           <div className="mt-6">
@@ -1599,18 +1683,6 @@ export default function ProviderDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Control Signature (Base64)
-                  </label>
-                  <textarea
-                    value={selectedKeyDetails.controlSignature}
-                    readOnly
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Lightning Address
                   </label>
                   <textarea
@@ -1643,11 +1715,12 @@ export default function ProviderDashboard() {
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                Pending Signature Requests ({requests.length})
+                Pending Signature Requests (
+                {requests.filter((r) => r.status === "PENDING").length})
               </h2>
             </div>
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {requests.length === 0 ? (
+              {requests.filter((r) => r.status === "PENDING").length === 0 ? (
                 <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                   <svg
                     className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
@@ -1665,153 +1738,75 @@ export default function ProviderDashboard() {
                   <p className="mt-2">No pending signature requests</p>
                 </div>
               ) : (
-                requests.map((request) => (
-                  <div
-                    key={request.id}
-                    className={`px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                      selectedRequest?.id === request.id
-                        ? "bg-blue-50 dark:bg-blue-900/20"
-                        : ""
-                    }`}
-                    onClick={() => setSelectedRequest(request)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          Client: {request.clientUsername}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Policy: {request.servicePolicyType}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Fee: {request.perSignatureFee} sats
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Created: {formatDate(request.createdAt)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            isUnlocked(request.unlocksAt)
-                              ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-                              : "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
-                          }`}
-                        >
-                          {isUnlocked(request.unlocksAt)
-                            ? "Unlocked"
-                            : "Locked"}
-                        </span>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Unlocks: {formatDate(request.unlocksAt)}
-                        </p>
+                requests
+                  .filter((r) => r.status === "PENDING")
+                  .map((request) => (
+                    <div
+                      key={request.id}
+                      className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            Client: {request.clientUsername}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Policy: {request.servicePolicyType}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Fee: {request.perSignatureFee} sats
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Created: {formatDate(request.createdAt)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              isUnlocked(request.unlocksAt)
+                                ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+                                : "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200"
+                            }`}
+                          >
+                            {isUnlocked(request.unlocksAt)
+                              ? "Unlocked"
+                              : "Locked"}
+                          </span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            Unlocks: {formatDate(request.unlocksAt)}
+                          </p>
+                          {isUnlocked(request.unlocksAt) && (
+                            <Button
+                              onClick={(e) => {
+                                e?.stopPropagation();
+                                openSignModal(request);
+                              }}
+                              variant="primary"
+                              size="sm"
+                              className="mt-2"
+                            >
+                              Sign PSBT
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </div>
 
-          {/* Sign PSBT Form */}
+          {/* Signed Transactions History */}
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
             <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                Sign PSBT
+                Signed Transactions (
+                {requests.filter((r) => r.status === "SIGNED").length})
               </h2>
             </div>
-            <div className="px-6 py-4">
-              {selectedRequest ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Selected Request
-                    </label>
-                    <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
-                      <p className="text-sm text-gray-900 dark:text-white">
-                        <strong>Client:</strong>{" "}
-                        {selectedRequest.clientUsername}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        <strong>Policy:</strong>{" "}
-                        {selectedRequest.servicePolicyType}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        <strong>Fee:</strong> {selectedRequest.perSignatureFee}{" "}
-                        sats
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        <strong>Status:</strong>{" "}
-                        <span
-                          className={
-                            isUnlocked(selectedRequest.unlocksAt)
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-yellow-600 dark:text-yellow-400"
-                          }
-                        >
-                          {isUnlocked(selectedRequest.unlocksAt)
-                            ? "Unlocked"
-                            : "Locked"}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {!isUnlocked(selectedRequest.unlocksAt) && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4">
-                      <div className="flex">
-                        <div className="flex-shrink-0">
-                          <svg
-                            className="h-5 w-5 text-yellow-400"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                            This request is still locked. You cannot sign it
-                            until {formatDate(selectedRequest.unlocksAt)}.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Signed PSBT (Base64)
-                    </label>
-                    <textarea
-                      value={signedPsbt}
-                      onChange={(e) => setSignedPsbt(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      rows={6}
-                      placeholder="Paste the signed PSBT here..."
-                      disabled={!isUnlocked(selectedRequest.unlocksAt)}
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleSignRequest}
-                    variant="primary"
-                    size="md"
-                    fullWidth
-                    loading={submitting}
-                    disabled={
-                      !isUnlocked(selectedRequest.unlocksAt) || submitting
-                    }
-                  >
-                    Submit Signed PSBT
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {requests.filter((r) => r.status === "SIGNED").length === 0 ? (
+                <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                   <svg
                     className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
                     fill="none"
@@ -1825,13 +1820,261 @@ export default function ProviderDashboard() {
                       d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <p className="mt-2">Select a request to sign</p>
+                  <p className="mt-2">No signed transactions yet</p>
                 </div>
+              ) : (
+                requests
+                  .filter((r) => r.status === "SIGNED")
+                  .map((request) => (
+                    <div key={request.id} className="px-6 py-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            Client: {request.clientUsername}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Policy: {request.servicePolicyType}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Fee: {request.perSignatureFee} sats
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Signed: {formatDate(request.createdAt)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
+                            Signed
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Sign PSBT Modal */}
+      {showSignModal && signingRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                Sign PSBT for {signingRequest.clientUsername}
+              </h2>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Request Details
+                </label>
+                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
+                  <p className="text-sm text-gray-900 dark:text-white">
+                    <strong>Client:</strong> {signingRequest.clientUsername}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    <strong>Policy:</strong> {signingRequest.servicePolicyType}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    <strong>Fee:</strong> {signingRequest.perSignatureFee} sats
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    <strong>Status:</strong>{" "}
+                    <span
+                      className={
+                        isUnlocked(signingRequest.unlocksAt)
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-yellow-600 dark:text-yellow-400"
+                      }
+                    >
+                      {isUnlocked(signingRequest.unlocksAt)
+                        ? "Unlocked"
+                        : "Locked"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {!isUnlocked(signingRequest.unlocksAt) && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-yellow-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        This request is still locked. You cannot sign it until{" "}
+                        {formatDate(signingRequest.unlocksAt)}.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Upload Signed PSBT
+                </label>
+
+                {/* File Upload Area */}
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    isDragOver
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                      : "border-gray-300 dark:border-gray-600"
+                  } ${
+                    !isUnlocked(signingRequest.unlocksAt)
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {signedPsbtFile ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center">
+                        <svg
+                          className="h-8 w-8 text-green-500"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                      <p className="text-sm text-gray-900 dark:text-white font-medium">
+                        {signedPsbtFile.name}
+                      </p>
+                      {signedPsbtValidation.isValid ? (
+                        <p className="text-sm text-green-600 dark:text-green-400">
+                          ✅ Valid signed PSBT
+                        </p>
+                      ) : signedPsbtValidation.error ? (
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                          ❌ {signedPsbtValidation.error}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Validating...
+                        </p>
+                      )}
+                      <button
+                        onClick={() => {
+                          setSignedPsbtFile(null);
+                          setSignedPsbt("");
+                          setSignedPsbtValidation({ isValid: false });
+                        }}
+                        className="text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                      >
+                        Remove file
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
+                        stroke="currentColor"
+                        fill="none"
+                        viewBox="0 0 48 48"
+                      >
+                        <path
+                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <label
+                          htmlFor="file-upload-modal"
+                          className="relative cursor-pointer rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+                        >
+                          <span>Upload a file</span>
+                          <input
+                            id="file-upload-modal"
+                            name="file-upload-modal"
+                            type="file"
+                            className="sr-only"
+                            accept=".psbt"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleSignedPsbtFileChange(file);
+                              }
+                            }}
+                            disabled={!isUnlocked(signingRequest.unlocksAt)}
+                          />
+                        </label>
+                        <p className="pl-1">or drag and drop</p>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        PSBT files only
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    {error}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3">
+                <Button
+                  onClick={() => {
+                    setShowSignModal(false);
+                    setSigningRequest(null);
+                    setSignedPsbt("");
+                    setSignedPsbtFile(null);
+                    setSignedPsbtValidation({ isValid: false });
+                    setError("");
+                  }}
+                  variant="secondary"
+                  size="md"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSignRequest}
+                  variant="primary"
+                  size="md"
+                  loading={submitting}
+                  disabled={
+                    !isUnlocked(signingRequest.unlocksAt) ||
+                    submitting ||
+                    !signedPsbtValidation.isValid ||
+                    !signedPsbt.trim()
+                  }
+                >
+                  Submit Signed PSBT
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,6 +16,18 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Critical Disclaimer Banner */}
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="text-center">
+            <p className="text-xs text-yellow-800 dark:text-yellow-200 max-w-4xl mx-auto">
+              ⚠️ <strong>EXPERIMENTAL SOFTWARE:</strong> Risk of fund loss.
+              Providers can see transaction history. Use small amounts only.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">

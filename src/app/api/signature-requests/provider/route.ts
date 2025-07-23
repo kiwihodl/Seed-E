@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
         service: {
           providerId,
         },
-        status: "PENDING",
       },
       include: {
         client: true,
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        createdAt: "asc",
+        createdAt: "desc",
       },
     });
 

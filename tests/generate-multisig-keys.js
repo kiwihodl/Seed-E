@@ -52,7 +52,6 @@ function generateKeysForPolicy(policyType) {
   const testData = {
     policyType: policyType,
     xpub: xpub,
-    controlSignature: signatureHex,
     masterFingerprint: masterFingerprint,
     derivationPath: derivationPath,
     initialBackupFee: 1,
@@ -65,7 +64,6 @@ function generateKeysForPolicy(policyType) {
   console.log(`\n🔑 Generated ${policyType} Key:`);
   console.log(`Policy Type: ${testData.policyType}`);
   console.log(`Xpub: ${testData.xpub}`);
-  console.log(`Control Signature: ${testData.controlSignature}`);
   console.log(`Master Fingerprint: ${testData.masterFingerprint}`);
   console.log(`Derivation Path: ${testData.derivationPath}`);
   console.log(`Initial Backup Fee: ${testData.initialBackupFee} sats`);

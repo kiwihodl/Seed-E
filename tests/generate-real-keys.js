@@ -38,7 +38,6 @@ function generateKeys() {
   const testData = {
     policyType: "P2WSH",
     xpub: xpub,
-    controlSignature: signatureHex,
     masterFingerprint: masterFingerprint,
     derivationPath: derivationPath,
     initialBackupFee: 1,
@@ -50,7 +49,6 @@ function generateKeys() {
 
   console.log(`Policy Type: ${testData.policyType}`);
   console.log(`Xpub: ${testData.xpub}`);
-  console.log(`Control Signature: ${testData.controlSignature}`);
   console.log(`Master Fingerprint: ${testData.masterFingerprint}`);
   console.log(`Derivation Path: ${testData.derivationPath}`);
   console.log(`Initial Backup Fee: ${testData.initialBackupFee} sats`);
