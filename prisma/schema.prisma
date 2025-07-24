@@ -7,17 +7,17 @@ generator client {
 }
 
 // Local development database configuration
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+//datasource db {
+  //provider = "postgresql"
+  //url      = env("DATABASE_URL")
+//}
 
 // Production database configuration (uncomment before deploying)
-// datasource db {
-//   provider = "postgresql"
-//   url = env("POSTGRES_PRISMA_URL")
-//   directUrl = env("POSTGRES_URL_NON_POOLING")
-// }
+datasource db {
+  provider = "postgresql"
+  url = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
 
 // ================================================================= //
 //                            MODELS                                 //
