@@ -6,11 +6,12 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://seed-e-user:${POSTGRES_PASSWORD}@postgres:5432/seed-e-db
+      - POSTGRES_PRISMA_URL=postgresql://seed-e-user:${POSTGRES_PASSWORD}@postgres:5432/seed-e-db
+      - POSTGRES_URL_NON_POOLING=postgresql://seed-e-user:${POSTGRES_PASSWORD}@postgres:5432/seed-e-db
       - XPUB_HASH_SECRET=${XPUB_HASH_SECRET}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=http://localhost:3000
-depends_on:
+    depends_on:
       - postgres
     restart: always
   postgres:
