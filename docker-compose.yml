@@ -11,9 +11,12 @@ services:
       - XPUB_HASH_SECRET=${XPUB_HASH_SECRET}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=http://localhost:3000
+      - LND_REST_URL=
+      - LND_INVOICE_MACAROON=
     depends_on:
       - postgres
     restart: always
+    command: sh -c "npx prisma migrate deploy && npm start"
   postgres:
     image: postgres:14-alpine
     restart: always
