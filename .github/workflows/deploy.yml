@@ -19,6 +19,18 @@ jobs:
           script: |
             cd /home/seed-e/Seed-E
             git pull origin main
+
+            # Create .env file with GitHub secrets
+            cat > .env << EOF
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            XPUB_HASH_SECRET=${{ secrets.XPUB_HASH_SECRET }}
+            NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+            NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+            LND_REST_URL=${{ secrets.LND_REST_URL }}
+            LND_INVOICE_MACAROON=${{ secrets.LND_INVOICE_MACAROON }}
+            EOF
+
             docker-compose down
             docker-compose build --no-cache
             docker-compose up -d
