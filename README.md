@@ -8,7 +8,6 @@ Seed-E is a non-custodial directory for Bitcoin signing services that enables co
 
 This is experimental software in early development. **DO NOT USE** for significant amounts until Beta testing is complete. The current implementation has serious privacy limitations:
 
-- **Provider Snooping**: Providers can see ALL your transaction history and balances by scanning the blockchain with their pubkey
 - **No Privacy Protection**: Your financial activity is completely visible to providers
 - **Extortion Risk**: Larger balances increase risk of extortion attempts
 - **Trust Required**: You must absolutely trust your chosen provider
@@ -32,7 +31,7 @@ This is experimental software in early development. **DO NOT USE** for significa
 
 **Important**: The current implementation uses traditional `xpub` / `zpub` - based multisig setups, which have known privacy limitations:
 
-1. **Provider Snooping**: Providers can monitor the blockchain for any transaction using their `xpub` and see the entire multisig wallet's transaction history, even for transactions they didn't participate in.
+1. **Provider Snooping**: Providers can monitor the blockchain for any forward transactions using their `xpub` and see some of multisig wallet's transaction history, potentially even for transactions they didn't participate in.
 
 2. **Platform Trust**: Users must trust that Seed-E doesn't log or misuse the `xpub` data submitted by providers. This will be provable before Beta closes.
 
