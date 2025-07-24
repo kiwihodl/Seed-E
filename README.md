@@ -33,14 +33,10 @@ This is experimental software in early development. **DO NOT USE** for significa
 **Important**: The current implementation uses traditional `xpub` / `zpub` - based multisig setups, which have known privacy limitations:
 
 1. **Provider Snooping**: Providers can monitor the blockchain for any transaction using their `xpub` and see the entire multisig wallet's transaction history, even for transactions they didn't participate in.
-
 2. **Platform Trust**: Users must trust that Seed-E doesn't log or misuse the `xpub` data submitted by providers. This will be provable before Beta closes.
-
 3. **Limited Extortion Protection**: The time delay provides some protection but doesn't prevent extortion attempts.
 
 ### Privacy Roadmap
-
-We are committed to implementing advanced privacy solutions:
 
 #### Phase 1: MVP (Current)
 
@@ -126,22 +122,28 @@ However, **providers can still see your balance and transaction history until Ph
 
 - Node.js 18+ and npm
 - PostgreSQL database
-- Lightning Network node (LND recommended)
+- Docker and docker-compose (for Dockerized deployment)
+- Lightning Network node (LND recommended, optional)
 
 ### Environment Variables
 
+Create a `.env` file in the project root:
+
 ```bash
-# Database
-DATABASE_URL="postgresql://user:pass@localhost:5432/seed-e"
-
-# Lightning Network
-LND_REST_URL="http://localhost:8080"
-LND_INVOICE_MACAROON="your-macaroon-here"
-
+# Database (Dockerized)
+POSTGRES_PASSWORD=your-postgres-password
+# Database (Bare Metal)
+# DATABASE_URL="postgresql://user:pass@localhost:5432/seed-e"
 # Security
-XPUB_HASH_SECRET="your-random-secret"
+XPUB_HASH_SECRET=your-random-secret
+NEXTAUTH_SECRET=your-random-secret
+NEXTAUTH_URL=http://localhost:3000
+# Lightning Network (optional)
+# LND_REST_URL=http://localhost:8080
+# LND_INVOICE_MACAROON=your-macaroon-here
 ```
 
+<<<<<<< Updated upstream
 ### Installation
 
 ```bash
@@ -173,3 +175,6 @@ This project is licensed under the MIT License
 ## ⚠️ Final Disclaimer
 
 Seed-E is experimental software. Use at your own risk and never store more funds than you can afford to lose. Store no more than a thousand sats or so before closing beta! Always verify signatures and transactions independently. **Only use providers you absolutely trust and again, don't use this seriously until Beta testing comes to a close.**
+=======
+###
+>>>>>>> Stashed changes

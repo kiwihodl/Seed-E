@@ -1,26 +1,32 @@
-name: Deploy to Production
-
+name: Deploy Seed-E
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to Seed-E Server
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.PORT }}
-          script: |
-            cd /home/seed-e/Seed-E
-            git pull origin main
-            docker-compose down
-            docker-compose build --no-cache
-            docker-compose up -d
-            docker-compose ps
-            echo "Deployment completed successfully!"
+    - uses: actions/checkout@v4
+    - name: Deploy to Seed-E Server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT }}
+        envs: POSTGRES_PASSWORD,XPUB_HASH_SECRET,NEXTAUTH_SECRET
+        script: |
+          cd /home/seed-e/Seed-E
+          git pull origin main
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" > .env
+          echo "XPUB_HASH_SECRET=${{ secrets.XPUB_HASH_SECRET }}" >> .env
+          echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env
+          echo "NEXTAUTH_URL=http://localhost:3000" >> .env
+          docker-compose down
+          docker-compose build --no-cache
+          docker-compose up -d
+          docker-compose exec app npx prisma migrate dev
+          docker image prune -f
+          docker-compose ps
+          echo "Deployment completed successfully!"
