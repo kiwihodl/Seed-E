@@ -1,6 +1,6 @@
 # Seed-E: P2P Collaborative Bitcoin Custody Platform
 
-Seed-E is a neutral, non-custodial directory for Bitcoin signing services that enables collaborative custody through a marketplace of trusted providers.
+Seed-E is a non-custodial directory for Bitcoin signing services that enables collaborative custody through a marketplace of trusted providers.
 
 ## ⚠️ CRITICAL DISCLAIMER
 
@@ -45,12 +45,22 @@ We are committed to implementing advanced privacy solutions:
 #### Phase 1: MVP (Current)
 
 - ✅ Create and recover provider and client accounts
-- ✅ List encrypted data at rest
+- ✅ Currently encrypts: - Passwords: Hashed with bcrypt (secure) - XPUB_HASH_SECRET: Environment variable (encrypted at rest) - NEXTAUTH_SECRET: Environment variable (encrypted at rest) - Database connections: Environment variables
+  ❌ Currently NOT Encrypted (Privacy Issues): - Usernames: Plain text in database - XPUBs/ZPUBs: Plain text in database (major privacy issue) - Transaction history: Visible to providers - Purchase history: Plain text - Signature requests: Plain text PSBT data - Client balances: Visible via xpub analysis - Provider service details: Plain text
 - ✅ Provider xpub/zpub import from Seed Signer
 - ✅ List xpub for sale with paywall protection
 - ✅ Purchase xpub and request signatures
 - ✅ Provider signing with time delay
 - ✅ Client PSBT download functionality
+
+#### Phase 1.5: Immediate Encryption (High Priority)
+
+- 🔄 **Encrypt XPUBs/ZPUBs** in database with AES-256
+- 🔄 **Encrypt PSBT data** in signature requests
+- 🔄 **Encrypt purchase history** details
+- 🔄 **Add field-level encryption** for sensitive data
+- 🔄 **Client-side encryption** before database storage
+- **Goal**: Prevent providers from seeing transaction history and balances
 
 #### Phase 2: Feedback & Optimization
 
@@ -62,9 +72,11 @@ We are committed to implementing advanced privacy solutions:
 
 - 🔄 TEE (Trusted Execution Environment) integration
 - 🔄 Zero-knowledge proofs for transaction validation
-- 🔄 OFAC list checking for compliance
+- 🔄 OFAC list checking for compliance so providers don't incriminate themselves
 - 🔄 Relay attack mitigation
 - 🔄 Start beta testing
+- 🔄 **Encrypted communication** between client/provider
+- 🔄 **Zero-knowledge proofs** for transaction validation
 
 #### Phase 4: Technology Migration
 
@@ -83,6 +95,8 @@ We are committed to implementing advanced privacy solutions:
 - 🔄 Multi-party computation for threshold signatures
 - 🔄 Ultimate privacy indistinguishable from single-signature transactions
 - 🔄 Better key management as you can roll keys without having to move funds
+- 🔄 **Homomorphic encryption** for calculations
+- 🔄 **Fully encrypted** transaction history
 - **Goal**: Complete privacy and optimal key management
 
 ### Comparison to Other Solutions
@@ -148,17 +162,13 @@ npm run dev
 
 ## 📖 Documentation
 
-- [API Documentation](./API_ENDPOINTS.md)
-- [Signature Request Specification](./SIGNATURE_REQUEST_SPEC.md)
-- [Project Status](./project_status.md)
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+- API Documentation found at ./API_ENDPOINTS.md
+- Signature Request Specification found at ./SIGNATURE_REQUEST_SPEC.md
+- Testing scripts found at ./tests
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License
 
 ## ⚠️ Final Disclaimer
 
