@@ -1,0 +1,26 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Seed-E Server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            cd /home/seed-e/Seed-E
+            git pull origin main
+            docker-compose down
+            docker-compose build --no-cache
+            docker-compose up -d
+            docker-compose ps
+            echo "Deployment completed successfully!"
