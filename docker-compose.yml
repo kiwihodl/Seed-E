@@ -16,7 +16,13 @@ services:
     depends_on:
       - postgres
     restart: always
-    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm start"
+    command: sh -c "npx prisma generate && npx prisma migrate deploy --accept-data-loss && npm start"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
   postgres:
     image: postgres:14-alpine
     restart: always
@@ -28,5 +34,10 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seed-e-user -d seed-e-db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   postgres_data:
