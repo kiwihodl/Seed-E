@@ -16,7 +16,7 @@ services:
     depends_on:
       - postgres
     restart: always
-    command: sh -c "npx prisma generate && npx prisma migrate deploy --accept-data-loss && npm start"
+    command: sh -c "npx prisma generate && npm start"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
