@@ -293,8 +293,8 @@ export async function POST(request: NextRequest) {
         policyType: policyType as "P2WSH" | "P2TR" | "P2SH", // Proper enum typing
         xpubHash: xpubHash, // Store hashed xpub instead of plain xpub
         encryptedXpub: xpub.trim(), // Store the actual xpub for provider access
-        masterFingerprint: masterFingerprint.trim(),
-        derivationPath: derivationPath.trim(),
+        // masterFingerprint: masterFingerprint.trim(),
+        // derivationPath: derivationPath.trim(),
         initialBackupFee: BigInt(initialBackupFee),
         perSignatureFee: BigInt(perSignatureFee),
         monthlyFee: monthlyFee ? BigInt(monthlyFee) : null,
