@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Test database connection first
+    await prisma.$connect();
+
     const existingProvider = await prisma.provider.findUnique({
       where: { username: name },
     });
@@ -24,9 +27,25 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error checking provider username:", error);
+
+    // Check if it's a database connection error
+    if (error instanceof Error) {
+      if (
+        error.message.includes("ECONNREFUSED") ||
+        error.message.includes("ENOTFOUND")
+      ) {
+        return NextResponse.json(
+          { error: "Database connection failed. Please try again later." },
+          { status: 503 }
+        );
+      }
+    }
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to check username availability" },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

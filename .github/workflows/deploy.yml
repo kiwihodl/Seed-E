@@ -32,17 +32,31 @@ jobs:
             LND_INVOICE_MACAROON=${{ secrets.LND_INVOICE_MACAROON }}
             EOF
 
-            # Stop and rebuild containers
+            # Stop containers
             docker-compose down
+
+            # Rebuild containers
             docker-compose build --no-cache
-            docker-compose up -d
+
+            # Start database first
+            docker-compose up -d postgres
 
             # Wait for database to be ready
+            echo "Waiting for database to be ready..."
+            sleep 15
+
+            # Generate Prisma client and run migrations
+            docker-compose run --rm app npx prisma generate
+            docker-compose run --rm app npx prisma migrate deploy
+
+            # Start the full application
+            docker-compose up -d
+
+            # Wait for app to be ready
             sleep 10
 
-            # Run database migrations
-            docker-compose exec -T app npx prisma generate
-            docker-compose exec -T app npx prisma migrate deploy
+            # Test the health endpoint
+            curl -f http://localhost:3000/api/health || echo "Health check failed"
 
             # Clean up old images
             docker image prune -f
