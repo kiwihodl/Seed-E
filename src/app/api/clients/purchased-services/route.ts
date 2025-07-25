@@ -44,8 +44,8 @@ export async function GET(request: NextRequest) {
       providerName: purchase.service.provider.username,
       policyType: purchase.service.policyType,
       xpubHash: purchase.service.xpubHash,
-      masterFingerprint: purchase.service.masterFingerprint,
-      derivationPath: purchase.service.derivationPath,
+      masterFingerprint: purchase.service.masterFingerprint || null,
+      derivationPath: purchase.service.derivationPath || null,
       initialBackupFee: Number(purchase.service.initialBackupFee),
       perSignatureFee: Number(purchase.service.perSignatureFee),
       monthlyFee: purchase.service.monthlyFee
