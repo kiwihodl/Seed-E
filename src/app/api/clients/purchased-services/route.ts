@@ -44,8 +44,7 @@ export async function GET(request: NextRequest) {
       providerName: purchase.service.provider.username,
       policyType: purchase.service.policyType,
       xpubHash: purchase.service.xpubHash,
-      masterFingerprint: purchase.service.masterFingerprint || null,
-      derivationPath: purchase.service.derivationPath || null,
+      // masterFingerprint and derivationPath REMOVED to fix build error
       initialBackupFee: Number(purchase.service.initialBackupFee),
       perSignatureFee: Number(purchase.service.perSignatureFee),
       monthlyFee: purchase.service.monthlyFee
@@ -70,4 +69,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-// Force deployment
