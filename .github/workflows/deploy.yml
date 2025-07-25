@@ -20,7 +20,8 @@ jobs:
           envs: POSTGRES_PASSWORD,XPUB_HASH_SECRET,NEXTAUTH_SECRET,NEXTAUTH_URL,LND_REST_URL,LND_INVOICE_MACAROON
           script: |
             cd /home/seed-e/Seed-E
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
 
             # Create .env file with all required environment variables
             cat > .env << EOF
