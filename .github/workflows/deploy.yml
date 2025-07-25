@@ -9,7 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - name: Deploy to Seed-E Server
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -17,12 +16,10 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.PORT }}
-          envs: POSTGRES_PASSWORD,XPUB_HASH_SECRET,NEXTAUTH_SECRET,NEXTAUTH_URL,LND_REST_URL,LND_INVOICE_MACAROON
           script: |
             cd /home/seed-e/Seed-E
             git fetch origin
             git reset --hard origin/main
-
             # Create .env file with all required environment variables
             cat > .env << EOF
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
@@ -32,36 +29,26 @@ jobs:
             LND_REST_URL=${{ secrets.LND_REST_URL }}
             LND_INVOICE_MACAROON=${{ secrets.LND_INVOICE_MACAROON }}
             EOF
-
             # Stop containers
             docker-compose down
-
             # Rebuild containers
             docker-compose build --no-cache
-
             # Start database first
             docker-compose up -d postgres
-
             # Wait for database to be ready
             echo "Waiting for database to be ready..."
             sleep 15
-
-            # Generate Prisma client and run migrations
+            # Generate Prisma client (skip migration since DB already exists)
             docker-compose run --rm app npx prisma generate
-            docker-compose run --rm app npx prisma migrate deploy
-
+            # docker-compose run --rm app npx prisma migrate deploy --accept-data-loss
             # Start the full application
             docker-compose up -d
-
             # Wait for app to be ready
             sleep 10
-
             # Test the health endpoint
             curl -f http://localhost:3000/api/health || echo "Health check failed"
-
             # Clean up old images
             docker image prune -f
-
             # Check container status
             docker-compose ps
             echo "Deployment completed successfully!"
