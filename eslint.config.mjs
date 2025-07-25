@@ -14,7 +14,7 @@ const eslintConfig = [
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
-      parser: require("@typescript-eslint/parser"),
+      parser: await import("@typescript-eslint/parser"),
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
@@ -25,7 +25,7 @@ const eslintConfig = [
       },
     },
     plugins: {
-      "@typescript-eslint": require("@typescript-eslint/eslint-plugin"),
+      "@typescript-eslint": await import("@typescript-eslint/eslint-plugin"),
     },
     rules: {
       "@typescript-eslint/no-unused-vars": "error",
