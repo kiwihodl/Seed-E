@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { encryptionService } from "@/lib/encryption";
+import { clientSecurityService } from "@/lib/client-security";
 
 const prisma = new PrismaClient();
 
@@ -62,13 +64,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Encrypt signed PSBT data for secure storage
+    const encryptedSignedPsbtData = encryptionService.encryptPSBT(
+      signedPsbtData,
+      signatureRequestId
+    );
+
     // Update the signature request
     const updatedRequest = await prisma.signatureRequest.update({
       where: {
         id: signatureRequestId,
       },
       data: {
-        signedPsbtData,
+        signedPsbtData, // Keep plain text for backward compatibility
+        encryptedSignedPsbtData: encryptedSignedPsbtData, // Store encrypted signed PSBT data
         signedAt: new Date(),
         status: "SIGNED",
       },

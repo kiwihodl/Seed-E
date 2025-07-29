@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getStoredUserInfo } from "@/lib/auth";
+import { encryptionService } from "@/lib/encryption";
+import { clientSecurityService } from "@/lib/client-security";
 
 const prisma = new PrismaClient();
 
@@ -68,12 +70,16 @@ export async function POST(request: NextRequest) {
 
     let signatureRequest;
 
+    // Encrypt PSBT data for secure storage
+    const encryptedPsbtData = encryptionService.encryptPSBT(psbtData, existingSignatureRequest?.id || 'new-request');
+
     if (existingSignatureRequest) {
       // Update the existing temporary signature request with PSBT data
       signatureRequest = await prisma.signatureRequest.update({
         where: { id: existingSignatureRequest.id },
         data: {
-          psbtData,
+          psbtData, // Keep plain text for backward compatibility
+          encryptedPsbtData: encryptedPsbtData, // Store encrypted PSBT data
           psbtHash: psbtValidation.hash,
           paymentConfirmed: true, // Payment was already confirmed
           status: "PENDING", // PSBT uploaded, waiting for provider to sign
@@ -88,7 +94,8 @@ export async function POST(request: NextRequest) {
         data: {
           clientId,
           serviceId,
-          psbtData,
+          psbtData, // Keep plain text for backward compatibility
+          encryptedPsbtData: encryptedPsbtData, // Store encrypted PSBT data
           psbtHash: psbtValidation.hash,
           paymentHash: paymentHash,
           paymentConfirmed: true, // Payment was already confirmed

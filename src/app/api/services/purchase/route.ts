@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { lightningService } from "@/lib/lightning";
+import { encryptionService } from "@/lib/encryption";
 
 const prisma = new PrismaClient();
 
@@ -147,11 +148,22 @@ export async function POST(request: NextRequest) {
       data: {
         serviceId: serviceId,
         clientId: clientId,
-        paymentHash: invoice.paymentHash,
+        paymentHash: invoice.paymentHash, // Keep plain text for backward compatibility
         expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
         isActive: false, // Mark as pending until payment is confirmed
         // Store the verify URL for LNURL verification
         verifyUrl: invoice.verifyUrl || null,
+      },
+    });
+
+    // Encrypt payment hash for secure storage
+    const encryptedPaymentHashData = encryptionService.encryptPaymentHash(invoice.paymentHash, result.id);
+
+    // Update with encrypted data
+    await prisma.servicePurchase.update({
+      where: { id: result.id },
+      data: {
+        encryptedPaymentHashData: encryptedPaymentHashData,
       },
     });
 

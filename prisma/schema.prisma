@@ -63,6 +63,9 @@ model Service {
 
   // The encrypted extended public key (only accessible to the provider).
   encryptedXpub String?
+  
+  // Encrypted XPUB data with IV and auth tag (Phase 1.5 encryption)
+  encryptedXpubData Json?
 
   // The master fingerprint (e.g., 97046043) for client wallet setup.
   masterFingerprint String?
@@ -142,6 +145,9 @@ model ServicePurchase {
 
   // The payment hash of the invoice used to purchase the service.
   paymentHash String? @unique
+  
+  // Encrypted payment hash data with IV and auth tag (Phase 1.5 encryption)
+  encryptedPaymentHashData Json?
 
   // Lightning address and amount for LNURL verification
   lightningAddress String?
@@ -160,7 +166,6 @@ model ServicePurchase {
 }
 
 enum RequestStatus {
-  REQUESTED  // Client has paid signature fee, waiting for PSBT upload
   PENDING    // PSBT uploaded, waiting for provider to sign.
   SIGNED     // Provider has signed and submitted the PSBT.
   COMPLETED  // Client has acknowledged/received the signed PSBT.
@@ -188,15 +193,24 @@ model SignatureRequest {
   // The PSBT (Partially Signed Bitcoin Transaction) needing a signature.
   // Stored as a base64 string.
   psbtData String
+  
+  // Encrypted PSBT data with IV and auth tag (Phase 1.5 encryption)
+  encryptedPsbtData Json?
 
   // The PSBT after the provider has signed it.
   signedPsbtData String?
+  
+  // Encrypted signed PSBT data with IV and auth tag (Phase 1.5 encryption)
+  encryptedSignedPsbtData Json?
 
   // Hash of the PSBT for validation
   psbtHash String?
 
   // The payment hash for the signature fee
   paymentHash String? @unique
+  
+  // Encrypted payment hash data with IV and auth tag (Phase 1.5 encryption)
+  encryptedPaymentHashData Json?
 
   // LNURL verify URL for payment verification
   verifyUrl String?
@@ -213,7 +227,10 @@ model SignatureRequest {
   // The timestamp when the provider uploaded the signed PSBT.
   signedAt DateTime?
 
-  status RequestStatus @default(REQUESTED)
+  status RequestStatus @default(PENDING)
+  
+  // Whether the service relationship is still active (key not deleted by provider)
+  isActive Boolean @default(true)
 }
 
 // Represents a NIP-47 subscription payment request

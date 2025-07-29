@@ -6,6 +6,9 @@ import * as ecc from "tiny-secp256k1";
 import ECPairFactory from "ecpair";
 import { hashXpub } from "@/lib/xpub-hash";
 import { lightningService } from "@/lib/lightning";
+import { encryptionService } from "@/lib/encryption";
+import { clientSecurityService } from "@/lib/client-security";
+import { advancedFeaturesService } from "@/lib/advanced-features";
 
 bitcoin.initEccLib(ecc);
 const bip32 = BIP32Factory(ecc);
@@ -286,13 +289,20 @@ export async function POST(request: NextRequest) {
     // Hash the xpub for secure storage
     const xpubHash = hashXpub(xpub.trim());
 
+    // Encrypt the XPUB data
+    const encryptedXpubData = encryptionService.encryptXpub(
+      xpub.trim(),
+      provider.id
+    );
+
     // Create the new service in the database
     const newService = await prisma.service.create({
       data: {
         providerId: provider.id,
         policyType: policyType as "P2WSH" | "P2TR" | "P2SH", // Proper enum typing
         xpubHash: xpubHash, // Store hashed xpub instead of plain xpub
-        encryptedXpub: xpub.trim(), // Store the actual xpub for provider access
+        encryptedXpub: xpub.trim(), // Keep plain text for backward compatibility
+        encryptedXpubData: encryptedXpubData, // Store encrypted XPUB data
         // masterFingerprint: masterFingerprint.trim(),
         // derivationPath: derivationPath.trim(),
         initialBackupFee: BigInt(initialBackupFee),
