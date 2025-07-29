@@ -10,6 +10,33 @@ import { encryptionService } from "@/lib/encryption";
 import { clientSecurityService } from "@/lib/client-security";
 import { advancedFeaturesService } from "@/lib/advanced-features";
 
+/**
+ * Verify ECDSA signature proving ownership of an XPUB
+ */
+async function verifyOwnershipSignature(
+  signature: string,
+  message: string,
+  xpub: string
+): Promise<boolean> {
+  try {
+    // Import the XPUB to get the public key
+    const node = bip32.fromBase58(xpub);
+    const publicKey = node.publicKey;
+
+    // Create message hash
+    const messageHash = bitcoin.crypto.sha256(Buffer.from(message, "utf8"));
+
+    // Parse the signature (assuming DER format)
+    const signatureBuffer = Buffer.from(signature, "base64");
+
+    // Verify the signature
+    return ecc.verify(messageHash, signatureBuffer, publicKey);
+  } catch (error) {
+    console.error("Error verifying ownership signature:", error);
+    return false;
+  }
+}
+
 bitcoin.initEccLib(ecc);
 const bip32 = BIP32Factory(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -165,6 +192,8 @@ export async function POST(request: NextRequest) {
       monthlyFee,
       minTimeDelayDays,
       lightningAddress, // Changed from bolt12Offer
+      ownershipSignature, // ECDSA signature proving ownership
+      ownershipMessage, // Message that was signed
     } = await request.json();
 
     console.log("Received request data:", {
@@ -190,7 +219,9 @@ export async function POST(request: NextRequest) {
       !initialBackupFee ||
       !perSignatureFee ||
       !minTimeDelayDays ||
-      !lightningAddress // Changed from bolt12Offer
+      !lightningAddress || // Changed from bolt12Offer
+      !ownershipSignature ||
+      !ownershipMessage
     ) {
       return NextResponse.json(
         { error: "All required fields must be provided" },
@@ -203,6 +234,49 @@ export async function POST(request: NextRequest) {
     if (!xpubValidation.isValid) {
       return NextResponse.json(
         { error: xpubValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Hash the xpub for secure storage
+    const xpubHash = hashXpub(xpub.trim());
+
+    // Verify ownership of the XPUB using ECDSA signature
+    try {
+      console.log("🔐 Verifying XPUB ownership signature...");
+
+      // Expected message format: "I own this XPUB for Seed-E service: [xpub_hash]"
+      const expectedMessage = `I own this XPUB for Seed-E service: ${xpubHash}`;
+
+      if (ownershipMessage !== expectedMessage) {
+        return NextResponse.json(
+          { error: "Invalid ownership message format" },
+          { status: 400 }
+        );
+      }
+
+      // Verify the ECDSA signature
+      const isValidSignature = await verifyOwnershipSignature(
+        ownershipSignature,
+        ownershipMessage,
+        xpub
+      );
+
+      if (!isValidSignature) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid ownership signature - you must prove you control this XPUB",
+          },
+          { status: 400 }
+        );
+      }
+
+      console.log("✅ XPUB ownership verified successfully");
+    } catch (error) {
+      console.error("Error verifying XPUB ownership:", error);
+      return NextResponse.json(
+        { error: "Failed to verify XPUB ownership" },
         { status: 400 }
       );
     }
@@ -286,16 +360,16 @@ export async function POST(request: NextRequest) {
 
     console.log("Creating service with provider ID:", provider.id);
 
-    // Hash the xpub for secure storage
-    const xpubHash = hashXpub(xpub.trim());
-
     // Encrypt the XPUB data
     console.log("🔐 Encrypting XPUB data for provider:", provider.id);
     const encryptedXpubData = encryptionService.encryptXpub(
       xpub.trim(),
       provider.id
     );
-    console.log("✅ XPUB encryption completed, data length:", JSON.stringify(encryptedXpubData).length);
+    console.log(
+      "✅ XPUB encryption completed, data length:",
+      JSON.stringify(encryptedXpubData).length
+    );
 
     // Create the new service in the database
     const newService = await prisma.service.create({
