@@ -378,8 +378,8 @@ export async function POST(request: NextRequest) {
         xpubHash: xpubHash, // Store hashed xpub instead of plain xpub
         encryptedXpub: xpub.trim(), // Keep plain text for backward compatibility
         encryptedXpubData: encryptedXpubData, // Store encrypted XPUB data
-        // masterFingerprint: masterFingerprint.trim(),
-        // derivationPath: derivationPath.trim(),
+        masterFingerprint: masterFingerprint.trim(),
+        derivationPath: derivationPath.trim(),
         initialBackupFee: BigInt(initialBackupFee),
         perSignatureFee: BigInt(perSignatureFee),
         monthlyFee: monthlyFee ? BigInt(monthlyFee) : null,

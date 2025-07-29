@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
       isActive: purchase.isActive,
       paymentHash: purchase.paymentHash,
       xpubKey: purchase.service.encryptedXpub, // Use the actual xpub key instead of hash
+      masterFingerprint: purchase.service.masterFingerprint,
+      derivationPath: purchase.service.derivationPath,
     }));
 
     return NextResponse.json({
