@@ -71,6 +71,8 @@ export default function ProviderDashboard() {
     monthlyFee: "",
     minTimeDelayDays: "",
     lightningAddress: "", // Changed from bolt12Offer
+    ownershipSignature: "", // Optional for testing
+    ownershipMessage: "", // Optional for testing
   });
   const [addingKey, setAddingKey] = useState(false);
   const [username, setUsername] = useState("");
@@ -531,7 +533,6 @@ export default function ProviderDashboard() {
           providerId: providerId,
           policyType: addKeyForm.policyType,
           xpub: addKeyForm.xpub.trim(),
-
           masterFingerprint: addKeyForm.masterFingerprint.trim(),
           derivationPath: addKeyForm.derivationPath.trim(),
           initialBackupFee: parseInt(
@@ -545,6 +546,8 @@ export default function ProviderDashboard() {
             : null,
           minTimeDelayDays: parseInt(addKeyForm.minTimeDelayDays),
           lightningAddress: addKeyForm.lightningAddress.trim(),
+          ownershipSignature: addKeyForm.ownershipSignature.trim() || undefined,
+          ownershipMessage: addKeyForm.ownershipMessage.trim() || undefined,
         }),
       });
 
@@ -560,6 +563,8 @@ export default function ProviderDashboard() {
           monthlyFee: "",
           minTimeDelayDays: "",
           lightningAddress: "",
+          ownershipSignature: "",
+          ownershipMessage: "",
         });
         setTimeDelayError("");
         setXpubError("");
@@ -1276,6 +1281,51 @@ export default function ProviderDashboard() {
                       )}
                   </div>
 
+                  {/* Ownership Signature Fields (Optional for Testing) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Ownership Signature (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={addKeyForm.ownershipSignature}
+                        onChange={(e) =>
+                          setAddKeyForm({
+                            ...addKeyForm,
+                            ownershipSignature: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                        placeholder="Base64 encoded signature"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        ECDSA signature proving ownership of the xpub (optional for testing).
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Ownership Message (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={addKeyForm.ownershipMessage}
+                        onChange={(e) =>
+                          setAddKeyForm({
+                            ...addKeyForm,
+                            ownershipMessage: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#FF9500] focus:border-[#FF9500]"
+                        placeholder="Message that was signed"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        The message that was signed to prove ownership (optional for testing).
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end space-x-3">
                     <Button
                       type="button"
@@ -1292,6 +1342,8 @@ export default function ProviderDashboard() {
                           monthlyFee: "",
                           minTimeDelayDays: "",
                           lightningAddress: "",
+                          ownershipSignature: "",
+                          ownershipMessage: "",
                         });
                         setTimeDelayError("");
                         setXpubError("");

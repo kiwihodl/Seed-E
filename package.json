@@ -29,6 +29,7 @@
     "ln-service": "^57.26.0",
     "moment": "^2.30.1",
     "next": "15.4.1",
+    "node-fetch": "^3.3.2",
     "nostr-tools": "^2.15.1",
     "otplib": "^12.0.1",
     "pako": "^2.1.0",
