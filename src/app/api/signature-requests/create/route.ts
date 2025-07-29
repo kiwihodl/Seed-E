@@ -71,7 +71,15 @@ export async function POST(request: NextRequest) {
     let signatureRequest;
 
     // Encrypt PSBT data for secure storage
-    const encryptedPsbtData = encryptionService.encryptPSBT(psbtData, existingSignatureRequest?.id || 'new-request');
+    console.log("🔐 Encrypting PSBT data for signature request");
+    const encryptedPsbtData = encryptionService.encryptPSBT(
+      psbtData,
+      existingSignatureRequest?.id || "new-request"
+    );
+    console.log(
+      "✅ PSBT encryption completed, data length:",
+      JSON.stringify(encryptedPsbtData).length
+    );
 
     if (existingSignatureRequest) {
       // Update the existing temporary signature request with PSBT data

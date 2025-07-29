@@ -290,10 +290,12 @@ export async function POST(request: NextRequest) {
     const xpubHash = hashXpub(xpub.trim());
 
     // Encrypt the XPUB data
+    console.log("🔐 Encrypting XPUB data for provider:", provider.id);
     const encryptedXpubData = encryptionService.encryptXpub(
       xpub.trim(),
       provider.id
     );
+    console.log("✅ XPUB encryption completed, data length:", JSON.stringify(encryptedXpubData).length);
 
     // Create the new service in the database
     const newService = await prisma.service.create({

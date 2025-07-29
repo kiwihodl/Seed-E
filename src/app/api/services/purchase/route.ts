@@ -157,7 +157,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Encrypt payment hash for secure storage
-    const encryptedPaymentHashData = encryptionService.encryptPaymentHash(invoice.paymentHash, result.id);
+    console.log("🔐 Encrypting payment hash for purchase:", result.id);
+    const encryptedPaymentHashData = encryptionService.encryptPaymentHash(
+      invoice.paymentHash,
+      result.id
+    );
+    console.log(
+      "✅ Payment hash encryption completed, data length:",
+      JSON.stringify(encryptedPaymentHashData).length
+    );
 
     // Update with encrypted data
     await prisma.servicePurchase.update({
