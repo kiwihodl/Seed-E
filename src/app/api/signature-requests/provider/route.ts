@@ -15,6 +15,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // First check if there are any active services (purchased keys) for this provider
+    const activeServices = await prisma.service.findMany({
+      where: {
+        providerId,
+        servicePurchases: {
+          some: {
+            isActive: true,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    // If no active services, return empty array (no need to check for signature requests)
+    if (activeServices.length === 0) {
+      return NextResponse.json([]);
+    }
+
     const signatureRequests = await prisma.signatureRequest.findMany({
       where: {
         service: {

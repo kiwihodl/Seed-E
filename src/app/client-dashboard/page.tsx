@@ -447,7 +447,7 @@ export default function ClientDashboard() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "REQUESTED":
-        return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
+        return "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200";
       case "PENDING":
         return "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200";
       case "SIGNED":

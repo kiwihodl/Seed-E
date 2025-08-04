@@ -166,6 +166,7 @@ model ServicePurchase {
 }
 
 enum RequestStatus {
+  REQUESTED  // Payment requested, waiting for client to pay
   PENDING    // PSBT uploaded, waiting for provider to sign.
   SIGNED     // Provider has signed and submitted the PSBT.
   COMPLETED  // Client has acknowledged/received the signed PSBT.

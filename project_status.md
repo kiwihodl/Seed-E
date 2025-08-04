@@ -48,7 +48,7 @@
 - ✅ Payment-first signature request workflow
 - ✅ PSBT validation with byte-by-byte parsing (BIP 174)
 - ✅ Master fingerprint and derivation path support
-- ✅ Status tracking (REQUESTED, PENDING, SIGNED, COMPLETED)
+- ✅ Status tracking (REQUESTED, PENDING, SIGNED, COMPLETED, EXPIRED)
 - ✅ Provider dashboard integration for signature requests
 - ✅ Client dashboard integration for signature request management
 

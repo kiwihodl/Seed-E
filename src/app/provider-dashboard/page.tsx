@@ -467,12 +467,10 @@ export default function ProviderDashboard() {
         setRequests(mappedRequests);
       } else {
         // Don't show error for empty requests - this is normal for new providers
-        console.log("No signature requests found (normal for new providers)");
         setRequests([]);
       }
     } catch (error) {
       // Don't show error for network issues when there are no requests
-      console.log("Network error fetching requests (normal for new providers)");
       setRequests([]);
     } finally {
       setLoading(false);
@@ -1300,7 +1298,8 @@ export default function ProviderDashboard() {
                         placeholder="Base64 encoded signature"
                       />
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        ECDSA signature proving ownership of the xpub (optional for testing).
+                        ECDSA signature proving ownership of the xpub (optional
+                        for testing).
                       </p>
                     </div>
 
@@ -1321,7 +1320,8 @@ export default function ProviderDashboard() {
                         placeholder="Message that was signed"
                       />
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        The message that was signed to prove ownership (optional for testing).
+                        The message that was signed to prove ownership (optional
+                        for testing).
                       </p>
                     </div>
                   </div>
