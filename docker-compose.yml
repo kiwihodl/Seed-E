@@ -11,8 +11,8 @@ services:
       - XPUB_HASH_SECRET=${XPUB_HASH_SECRET}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - LND_REST_URL=${LND_REST_URL:-}
-      - LND_INVOICE_MACAROON=${LND_INVOICE_MACAROON:-}
+      # - LND_REST_URL=${LND_REST_URL:-}
+      # - LND_INVOICE_MACAROON=${LND_INVOICE_MACAROON:-}
     depends_on:
       - postgres
     restart: always

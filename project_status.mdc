@@ -1,13 +1,15 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: false
 ---
+
 # Seed-E Project Status
 
 ## ✅ **COMPLETED FEATURES**
 
 ### 🔐 **Authentication System**
+
 - ✅ User registration and login
 - ✅ 2FA setup and verification
 - ✅ Password reset functionality
@@ -16,6 +18,7 @@ alwaysApply: false
 - ✅ User validation middleware
 
 ### 🏢 **Provider Dashboard**
+
 - ✅ Provider registration and management
 - ✅ Policy creation and management
 - ✅ Signature request handling
@@ -37,6 +40,7 @@ alwaysApply: false
   - ✅ **Form integration** with control signature field
 
 ### 💰 **Client Dashboard**
+
 - ✅ Service browsing and purchase
 - ✅ Lightning payment integration
 - ✅ Signature request creation
@@ -44,12 +48,14 @@ alwaysApply: false
 - ✅ Payment status tracking
 
 ### ⚡ **Lightning Network Integration**
-- ✅ LND node integration
+
+- ✅ Decentralized Lightning integration (LNURL)
 - ✅ Lightning address support
 - ✅ Payment webhook handling
 - ✅ Invoice generation and validation
 
 ### 🔧 **Backend Services**
+
 - ✅ Prisma database with migrations
 - ✅ User authentication and authorization
 - ✅ Service policy management
@@ -59,6 +65,7 @@ alwaysApply: false
 ## 🚧 **IN PROGRESS**
 
 ### 🔑 **Add Key Form - Control Signature Validation**
+
 - ✅ **Sign Message Modal** - Complete with proper PSBT creation
 - ✅ **QR Code Generation** - Working with bitcoinjs-lib
 - ✅ **Form Integration** - Connected to control signature field
@@ -68,18 +75,22 @@ alwaysApply: false
 ## 📋 **TODO - Add Key Form**
 
 ### **Remaining Tasks:**
+
 1. **Backend PSBT Validation** - Update `/api/providers/validate-signature` to:
+
    - Accept PSBT data instead of hex signatures
    - Parse PSBT and extract signatures
    - Verify signatures against the xpub using bitcoinjs-lib
    - Validate that the PSBT contains the expected "Seed-E" message
 
 2. **PSBT Signature Verification** - Implement proper signature verification:
+
    - Extract public key from xpub
    - Verify signature against the message hash
    - Handle different signature formats (DER, etc.)
 
 3. **Error Handling** - Add proper error messages for:
+
    - Invalid PSBT format
    - Missing signatures
    - Signature verification failures
@@ -95,6 +106,7 @@ alwaysApply: false
 ## 🎯 **CURRENT STATUS**
 
 The **Add Key Form** is **90% complete**:
+
 - ✅ **Import Key Modal** - Fully functional with QR scanning
 - ✅ **Sign Message Modal** - Complete with proper PSBT creation
 - ✅ **Form Validation** - All fields validated
@@ -102,6 +114,7 @@ The **Add Key Form** is **90% complete**:
 - ⏳ **Final Integration** - Backend PSBT validation pending
 
 **Next Steps:**
+
 1. Update backend signature validation to handle PSBTs
 2. Test complete flow with SeedSigner
 3. Deploy and test in production environment
@@ -109,16 +122,19 @@ The **Add Key Form** is **90% complete**:
 ## 🏗️ **TECHNICAL ARCHITECTURE**
 
 ### **Frontend Components:**
+
 - `ImportKeyModal.tsx` - QR scanning and key import
 - `SignMessageModal.tsx` - PSBT creation and signature collection
 - `provider-dashboard/page.tsx` - Main provider interface
 
 ### **Backend APIs:**
+
 - `/api/providers/validate-signature` - Signature validation (needs PSBT support)
 - `/api/providers/route.ts` - Provider management
 - `/api/signature-requests/*` - Signature request handling
 
 ### **Libraries Used:**
+
 - `bitcoinjs-lib` - PSBT creation and manipulation
 - `tiny-secp256k1` - Cryptographic operations
 - `qrcode.react` - QR code generation
@@ -127,6 +143,7 @@ The **Add Key Form** is **90% complete**:
 ## 🚀 **DEPLOYMENT READY**
 
 The application is ready for deployment with:
+
 - ✅ Complete authentication system
 - ✅ Provider and client dashboards
 - ✅ Lightning payment integration

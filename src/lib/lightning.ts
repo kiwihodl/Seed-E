@@ -61,7 +61,7 @@ interface PurchaseData {
 
 class LightningService {
   private lndConfig: LightningConfig;
-  private isMockMode: boolean;
+  private isDecentralizedMode: boolean;
 
   constructor() {
     // Initialize with environment variables
@@ -70,12 +70,12 @@ class LightningService {
       lndInvoiceMacaroon: process.env.LND_INVOICE_MACAROON || "",
     };
 
-    // Check if we should use mock mode
-    this.isMockMode =
+    // Check if we should use decentralized LNURL mode (preferred) or centralized LND mode
+    this.isDecentralizedMode =
       !this.lndConfig.lndRestUrl || !this.lndConfig.lndInvoiceMacaroon;
 
     console.log("🔧 Lightning Service Configuration:", {
-      isMockMode: this.isMockMode,
+      isDecentralizedMode: this.isDecentralizedMode,
       hasLndConfig: !!this.lndConfig.lndRestUrl,
     });
   }
@@ -125,12 +125,12 @@ class LightningService {
         request.providerLightningAddress
       );
 
-      if (this.isMockMode) {
-        console.log("Mode: MOCK");
-        return this.createMockInvoice(request);
-      } else {
-        console.log("Mode: LND");
+      if (this.isDecentralizedMode) {
+        console.log("Mode: DECENTRALIZED (LNURL)");
         return this.createDecentralizedInvoice(request);
+      } else {
+        console.log("Mode: CENTRALIZED (LND)");
+        return this.createCentralizedInvoice(request);
       }
     } catch (error) {
       console.error("❌ Error creating Lightning invoice:", error);
@@ -138,7 +138,7 @@ class LightningService {
     }
   }
 
-  private createMockInvoice(request: InvoiceRequest): InvoiceResponse {
+  private createCentralizedInvoice(request: InvoiceRequest): InvoiceResponse {
     const paymentHash = this.generatePaymentHash();
     const paymentRequest = this.generateRealisticPaymentRequest(
       request.amount,
@@ -147,7 +147,7 @@ class LightningService {
     const expiresAt =
       request.expiresAt || new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    console.log("✅ Mock Lightning invoice created successfully");
+    console.log("✅ Centralized Lightning invoice created successfully");
     console.log("💡 To test payment confirmation, use:");
     console.log(`   node confirm-payment.js ${paymentHash}`);
 

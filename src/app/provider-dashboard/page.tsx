@@ -1272,9 +1272,9 @@ export default function ProviderDashboard() {
                       !lightningAddressValidating &&
                       addKeyForm.lightningAddress && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Recommended providers: Alby (@getalby.com), Voltage
-                          (@voltage.com), or any provider that supports LNURL
-                          verify. Example: highlyregarded@getalby.com
+                          Recommended providers: Alby (@getalby.com), or any
+                          provider that supports LNURL verify. Example:
+                          highlyregarded@getalby.com
                         </p>
                       )}
                   </div>

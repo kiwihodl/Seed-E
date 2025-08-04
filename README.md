@@ -45,7 +45,7 @@ We are committed to implementing advanced privacy solutions:
 
 - ✅ Create and recover provider and client accounts
 - ✅ Currently encrypts: - Passwords: Hashed with bcrypt (secure) - XPUB_HASH_SECRET: Environment variable (encrypted at rest) - NEXTAUTH_SECRET: Environment variable (encrypted at rest) - Database connections: Environment variables
-  ❌ Currently NOT Encrypted (Privacy Issues): - Usernames: Plain text in database - XPUBs/ZPUBs: Plain text in database (major privacy issue) - Transaction history: Visible to providers - Purchase history: Plain text - Signature requests: Plain text PSBT data - Client balances: Visible via xpub analysis - Provider service details: Plain text
+  ✅ Currently Encrypted (Phase 1.5 Implemented): - XPUBs/ZPUBs: AES-256-GCM encrypted in database - PSBT data: Encrypted in signature requests - Payment hashes: Encrypted for Lightning payments - Signed PSBTs: Encrypted after provider signing - Context-specific keys for different data types
 - ✅ Provider xpub/zpub import from Seed Signer
 - ✅ List xpub for sale with paywall protection
 - ✅ Purchase xpub and request signatures
@@ -54,11 +54,12 @@ We are committed to implementing advanced privacy solutions:
 
 #### Phase 1.5: Immediate Encryption (High Priority)
 
-- 🔄 **Encrypt XPUBs/ZPUBs** in database with AES-256
-- 🔄 **Encrypt PSBT data** in signature requests
-- 🔄 **Encrypt purchase history** details
-- 🔄 **Add field-level encryption** for sensitive data
-- 🔄 **Client-side encryption** before database storage
+- ✅ **Encrypt XPUBs/ZPUBs** in database with AES-256-GCM
+- ✅ **Encrypt PSBT data** in signature requests
+- ✅ **Encrypt payment hashes** for Lightning payments
+- ✅ **Add field-level encryption** for sensitive data
+- ✅ **Context-specific key derivation** for different data types
+- ✅ **AES-256-GCM with IV and auth tags** for tamper protection
 - **Goal**: Prevent providers from seeing transaction history and balances
 
 #### Phase 2: Feedback & Optimization
@@ -125,7 +126,7 @@ However, **providers can still see your balance and transaction history until Ph
 
 - Node.js 18+ and npm
 - PostgreSQL database
-- Lightning Network node (LND recommended)
+- Lightning addresses for providers (e.g., user@getalby.com)
 
 ### Environment Variables
 
@@ -133,9 +134,7 @@ However, **providers can still see your balance and transaction history until Ph
 # Database
 DATABASE_URL="postgresql://user:pass@localhost:5432/seed-e"
 
-# Lightning Network
-LND_REST_URL="http://localhost:8080"
-LND_INVOICE_MACAROON="your-macaroon-here"
+# Lightning Network (Use a LNURL verified address which can repeatitively create lightning invoices on demand)
 
 # Security
 XPUB_HASH_SECRET="your-random-secret"
