@@ -83,22 +83,6 @@ We are committed to implementing advanced privacy solutions:
 - 🔄 Evaluate Flutter + Rust bridge architecture
 - 🔄 Performance optimization and cross-platform support
 
-#### Phase 5: Chain Code Delegation & Blind Schnorr Signatures
-
-- 🔄 Implement [Chain Code Delegation](https://delvingbitcoin.org/t/chain-code-delegation-private-access-control-for-bitcoin-keys/1837) for privacy
-- 🔄 [Blind Schnorr signatures](https://eprint.iacr.org/2022/1676.pdf) for transaction privacy
-- 🔄 Scalar tweaks for client-side privacy
-- **Goal**: Providers cannot see transaction history or balances
-
-#### Phase 6: FROST MPC Integration
-
-- 🔄 Multi-party computation for threshold signatures
-- 🔄 Ultimate privacy indistinguishable from single-signature transactions
-- 🔄 Better key management as you can roll keys without having to move funds
-- 🔄 **Homomorphic encryption** for calculations
-- 🔄 **Fully encrypted** transaction history
-- **Goal**: Complete privacy and optimal key management
-
 ### Comparison to Other Solutions
 
 While Seed-E has privacy limitations in its current form, it offers advantages over traditional backup solutions:
