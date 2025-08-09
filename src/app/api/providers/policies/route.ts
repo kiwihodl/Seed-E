@@ -346,6 +346,11 @@ export async function POST(request: NextRequest) {
     // Find the provider by ID
     const provider = await prisma.provider.findUnique({
       where: { id: providerId },
+      select: {
+        id: true,
+        keybaseHandle: true,
+        shippingPolicyDefault: true,
+      },
     });
 
     console.log("Provider found:", provider ? "Yes" : "No");
@@ -354,6 +359,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Provider not found" },
         { status: 404 }
+      );
+    }
+
+    // Enforce provider profile prerequisites before allowing key creation
+    if (!provider.keybaseHandle || provider.keybaseHandle.trim().length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Provider profile incomplete: Keybase handle is required before adding a key. Please set it in the Provider Admin settings.",
+        },
+        { status: 400 }
+      );
+    }
+    if (!provider.shippingPolicyDefault) {
+      return NextResponse.json(
+        {
+          error:
+            "Provider shipping configuration is required before adding a key. Please configure shipping regions/fees in the Provider Admin settings.",
+        },
+        { status: 400 }
       );
     }
 

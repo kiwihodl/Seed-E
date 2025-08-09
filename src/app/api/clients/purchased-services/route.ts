@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
             provider: {
               select: {
                 username: true,
+                keybaseHandle: true,
               },
             },
           },
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
       id: purchase.id,
       serviceId: purchase.service.id,
       providerName: purchase.service.provider.username,
+      providerKeybase: purchase.service.provider.keybaseHandle || undefined,
       policyType: purchase.service.policyType,
       xpubHash: purchase.service.xpubHash,
       // masterFingerprint and derivationPath REMOVED to fix build error
@@ -55,6 +57,7 @@ export async function GET(request: NextRequest) {
       expiresAt: purchase.expiresAt?.toISOString(),
       isActive: purchase.isActive,
       paymentHash: purchase.paymentHash,
+      shipments: (purchase as any).shipments || [],
       xpubKey: purchase.service.encryptedXpub, // Use the actual xpub key instead of hash
       masterFingerprint: purchase.service.masterFingerprint,
       derivationPath: purchase.service.derivationPath,

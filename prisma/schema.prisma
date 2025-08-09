@@ -7,18 +7,18 @@ generator client {
   output        = "../node_modules/.prisma/client"
 }
 
-// Local development database configuration
-//datasource db {
-  //provider = "postgresql"
-  //url      = env("DATABASE_URL")
-//}
-
-// Production database configuration (uncomment before deploying)
+//Local development database configuration
 datasource db {
   provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  url      = env("DATABASE_URL")
 }
+
+// Production database configuration (uncomment before deploying)
+//datasource db {
+  //provider  = "postgresql"
+  //url       = env("POSTGRES_PRISMA_URL")
+  //directUrl = env("POSTGRES_URL_NON_POOLING")
+//}
 
 // ================================================================= //
 //                            MODELS                                 //
@@ -28,6 +28,12 @@ enum KeyPolicyType {
   P2WSH
   P2TR
   P2SH
+}
+
+// Marketplace service type
+enum ServiceType {
+  ONE_TIME
+  MANAGED
 }
 
 // Represents an individual or entity providing signing services.
@@ -41,6 +47,11 @@ model Provider {
   twoFactorSecret String? // Encrypted TOTP secret
   recoveryKey     String? // Encrypted recovery key
   penaltyCount    Int     @default(0)
+
+  // Provider-level marketplace defaults
+  keybaseHandle         String?
+  shippingPolicyDefault Json?
+  materialsCatalog      Json?
 
   // The services (key offerings) this provider has.
   services Service[]
@@ -58,12 +69,15 @@ model Service {
   // The policy type of the key being offered (e.g., Taproot, SegWit).
   policyType KeyPolicyType
 
+  // Marketplace service type
+  serviceType ServiceType @default(ONE_TIME)
+
   // The hashed extended public key for this service (for security).
   xpubHash String @unique
 
   // The encrypted extended public key (only accessible to the provider).
   encryptedXpub String?
-  
+
   // Encrypted XPUB data with IV and auth tag (Phase 1.5 encryption)
   encryptedXpubData Json?
 
@@ -108,6 +122,10 @@ model Service {
 
   // The subscription requests for this service.
   subscriptionRequests SubscriptionRequest[]
+
+  // Optional marketplace overrides (applied over provider defaults)
+  shippingOverrides  Json?
+  materialsOverrides Json?
 }
 
 // Represents a client who can purchase services.
@@ -145,7 +163,7 @@ model ServicePurchase {
 
   // The payment hash of the invoice used to purchase the service.
   paymentHash String? @unique
-  
+
   // Encrypted payment hash data with IV and auth tag (Phase 1.5 encryption)
   encryptedPaymentHashData Json?
 
@@ -162,21 +180,27 @@ model ServicePurchase {
   // Whether the service is currently active for this client.
   isActive Boolean @default(true)
 
+  // Marketplace order data (Phase A)
+  orderConfig      Json?
+  pricingBreakdown Json?
+  shipments        Json?
+  years            Int?
+
   @@unique([clientId, serviceId])
 }
 
 enum RequestStatus {
-  REQUESTED  // Payment requested, waiting for client to pay
-  PENDING    // PSBT uploaded, waiting for provider to sign.
-  SIGNED     // Provider has signed and submitted the PSBT.
-  COMPLETED  // Client has acknowledged/received the signed PSBT.
-  EXPIRED    // The request timed out.
+  REQUESTED // Payment requested, waiting for client to pay
+  PENDING // PSBT uploaded, waiting for provider to sign.
+  SIGNED // Provider has signed and submitted the PSBT.
+  COMPLETED // Client has acknowledged/received the signed PSBT.
+  EXPIRED // The request timed out.
 }
 
 enum SubscriptionStatus {
-  PENDING    // NIP-47 request created, waiting for payment
-  COMPLETED  // Payment successful, subscription active
-  FAILED     // Payment failed or invalid response
+  PENDING // NIP-47 request created, waiting for payment
+  COMPLETED // Payment successful, subscription active
+  FAILED // Payment failed or invalid response
 }
 
 // Represents a request from a Client for a signature from a Provider.
@@ -194,13 +218,13 @@ model SignatureRequest {
   // The PSBT (Partially Signed Bitcoin Transaction) needing a signature.
   // Stored as a base64 string.
   psbtData String
-  
+
   // Encrypted PSBT data with IV and auth tag (Phase 1.5 encryption)
   encryptedPsbtData Json?
 
   // The PSBT after the provider has signed it.
   signedPsbtData String?
-  
+
   // Encrypted signed PSBT data with IV and auth tag (Phase 1.5 encryption)
   encryptedSignedPsbtData Json?
 
@@ -209,7 +233,7 @@ model SignatureRequest {
 
   // The payment hash for the signature fee
   paymentHash String? @unique
-  
+
   // Encrypted payment hash data with IV and auth tag (Phase 1.5 encryption)
   encryptedPaymentHashData Json?
 
@@ -229,7 +253,7 @@ model SignatureRequest {
   signedAt DateTime?
 
   status RequestStatus @default(PENDING)
-  
+
   // Whether the service relationship is still active (key not deleted by provider)
   isActive Boolean @default(true)
 }

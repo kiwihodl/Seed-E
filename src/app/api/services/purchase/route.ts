@@ -2,13 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { lightningService } from "@/lib/lightning";
 import { encryptionService } from "@/lib/encryption";
+import {
+  computeQuote,
+  mergeEffectiveMaterials,
+  mergeEffectiveShipping,
+  QuoteRequest,
+} from "@/lib/pricing";
 
 const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
     console.log("🔍 Purchase API called");
-    const { serviceId, clientId } = await request.json();
+    const body = await request.json();
+    const { serviceId, clientId } = body as {
+      serviceId: string;
+      clientId: string;
+    };
     console.log("📝 Request data:", { serviceId, clientId });
 
     if (!serviceId || !clientId) {
@@ -27,6 +37,8 @@ export async function POST(request: NextRequest) {
         provider: {
           select: {
             username: true,
+            shippingPolicyDefault: true,
+            materialsCatalog: true,
           },
         },
       },
@@ -98,8 +110,34 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Calculate the total fee (initial backup fee)
-    const totalFee = Number(service.initialBackupFee);
+    // Build effective configs and compute quote/pricing
+    const effectiveShipping = mergeEffectiveShipping(
+      service.provider.shippingPolicyDefault as any,
+      (service as any).shippingOverrides ?? null
+    );
+    const effectiveMaterials = mergeEffectiveMaterials(
+      service.provider.materialsCatalog as any,
+      (service as any).materialsOverrides ?? null
+    );
+
+    const quoteReq: QuoteRequest = {
+      serviceType: (service as any).serviceType || "ONE_TIME",
+      years: body.years,
+      sleeves: body.sleeves || [],
+      blankPlates: body.blankPlates || [],
+      recipients: body.recipients || [],
+    };
+
+    const breakdown = computeQuote(
+      quoteReq,
+      effectiveMaterials,
+      effectiveShipping,
+      {
+        setupFee: Number(service.initialBackupFee),
+        annualFee: service.annualFee ? Number(service.annualFee) : undefined,
+      }
+    );
+    const totalFee = breakdown.total;
 
     // For Lightning addresses, we need to use millisatoshis
     const amountMsats = totalFee * 1000; // Convert to millisatoshis
@@ -135,7 +173,7 @@ export async function POST(request: NextRequest) {
     // Generate Lightning Network invoice with provider's Lightning address
     console.log("🔌 Creating Lightning invoice...");
     const invoice = await lightningService.createInvoice({
-      amount: totalFee, // Keep in sats for the service
+      amount: totalFee, // sats
       description: `Service purchase: ${service.provider.username} - ${service.policyType}`,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
       providerLightningAddress: lightningAddress, // Pass provider's Lightning address
@@ -143,7 +181,7 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Lightning invoice created successfully");
 
-    // Simplified purchase creation for testing
+    // Create purchase with order config and pricing breakdown
     const result = await prisma.servicePurchase.create({
       data: {
         serviceId: serviceId,
@@ -153,6 +191,15 @@ export async function POST(request: NextRequest) {
         isActive: false, // Mark as pending until payment is confirmed
         // Store the verify URL for LNURL verification
         verifyUrl: invoice.verifyUrl || null,
+        orderConfig: {
+          serviceType: quoteReq.serviceType,
+          years: quoteReq.years,
+          sleeves: quoteReq.sleeves,
+          blankPlates: quoteReq.blankPlates,
+          recipients: quoteReq.recipients,
+        },
+        pricingBreakdown: breakdown,
+        years: quoteReq.years ?? null,
       },
     });
 
@@ -192,10 +239,11 @@ export async function POST(request: NextRequest) {
           id: service.id,
           providerName: service.provider.username,
           policyType: service.policyType,
-          initialBackupFee: totalFee,
+          initialBackupFee: Number(service.initialBackupFee),
           perSignatureFee: Number(service.perSignatureFee),
           minTimeDelay: service.minTimeDelay,
         },
+        pricingBreakdown: breakdown,
       },
     });
   } catch (error) {
